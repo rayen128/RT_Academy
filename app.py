@@ -1,11 +1,16 @@
 import streamlit as st
-from compound_interest import show_compound_interest_calculator
-from debt_payoff import show_debt_payoff_calculator
-from financial_overview import show_financial_overview
+from src.calculators.compound_interest import show_compound_interest_calculator
+from src.calculators.debt_payoff import show_debt_payoff_calculator
+from src.calculators.financial_overview import show_financial_overview
 
 st.title('Wat hoop je te bereiken?')
-goal = st.radio('', ['Financiën op orde brengen',
-                'Schulden aflossen', 'Vermogen opbouwen'])
+goal = st.radio(
+    label='Financieel doel',  # Meaningful label for accessibility
+    options=['Financiën op orde brengen',
+             'Schulden aflossen', 'Vermogen opbouwen'],
+    # Hides the label visually but keeps it for screen readers
+    label_visibility='collapsed'
+)
 
 if goal == 'Financiën op orde brengen':
     st.info("""
