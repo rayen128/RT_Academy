@@ -5,7 +5,7 @@ and advanced modes for analyzing assets, liabilities, and cash flow.
 
 Features
 --------
-- Simple Mode: 5 basic input fields for quick financial overview
+- Simple Mode: 4 basic input fields with automatic monthly leftover calculation
 - Advanced Mode: Detailed breakdown of multiple income sources, expenses,
   assets, and debts
 - Real-time validation and calculation of net worth and monthly balance
@@ -103,8 +103,9 @@ class FinancialOverviewData:  # pylint: disable=too-many-instance-attributes
 def get_simple_user_input() -> FinancialOverviewData:
     """Collect basic financial data through simplified input form.
 
-    Displays a simple form with 5 essential financial input fields arranged
-    in a two-column layout for quick financial overview entry.
+    Displays a simple form with 4 essential financial input fields arranged
+    in a two-column layout for quick financial overview entry. Monthly leftover
+    is automatically calculated from income minus expenses.
 
     Returns
     -------
@@ -126,6 +127,7 @@ def get_simple_user_input() -> FinancialOverviewData:
         Creates single-item lists for assets, liabilities, income_streams,
         and expense_streams to maintain consistency with advanced mode data structure.
         All monetary inputs are validated to be non-negative.
+        Monthly leftover is calculated as income minus expenses.
     """
     st.write("### Basis Financiële Gegevens")
 
@@ -133,9 +135,6 @@ def get_simple_user_input() -> FinancialOverviewData:
     with col1:
         monthly_income = st.number_input(
             "Maandelijks inkomen (€)", min_value=0.0, value=3000.0, step=100.0
-        )
-        monthly_leftover = st.number_input(
-            "Maandelijks over (€)", min_value=0.0, value=500.0, step=50.0
         )
         total_assets = st.number_input(
             "Totale bezittingen/spaargeld (€)",
@@ -151,6 +150,9 @@ def get_simple_user_input() -> FinancialOverviewData:
         total_debt = st.number_input(
             "Totale schulden (€)", min_value=0.0, value=0.0, step=1000.0
         )
+
+    # Calculate monthly leftover
+    monthly_leftover = monthly_income - monthly_expenses
 
     # Create simple data structures for consistency with advanced mode
     assets = (
@@ -343,10 +345,10 @@ def get_user_input() -> Tuple[FinancialOverviewData, bool]:
 
 
 def display_summary(data: FinancialOverviewData) -> None:
-    """Display comprehensive financial summary with metrics and validation.
+    """Display comprehensive financial summary with metrics.
 
     Calculates and displays key financial metrics including net worth and
-    monthly balance. Provides validation warnings for inconsistent simple mode inputs.
+    monthly balance from the provided financial data.
 
     Parameters
     ----------
@@ -358,7 +360,6 @@ def display_summary(data: FinancialOverviewData) -> None:
     -------
     None
         This function updates the Streamlit UI directly with metrics
-        and validation messages
 
     Example
     -------
@@ -373,9 +374,7 @@ def display_summary(data: FinancialOverviewData) -> None:
 
     Note
     ----
-    In simple mode (identified by single or no asset/liability entries),
-    provides validation warning if manually entered leftover amount doesn't
-    match calculated income minus expenses difference.
+    Monthly leftover is calculated automatically as income minus expenses.
     """
     # Calculate totals from the data
     net_worth = data.total_assets - data.total_debt
@@ -410,17 +409,6 @@ def display_summary(data: FinancialOverviewData) -> None:
             delta=f"{'Positief' if monthly_balance >= 0 else 'Negatief'} saldo",
             delta_color=delta_color,
         )
-
-    # Validation check - compare calculated vs input leftover in simple mode
-    if len(data.assets) <= 1 and len(data.liabilities) <= 1:  # Simple mode
-        # Allow for small rounding differences
-        if abs(monthly_balance - data.monthly_leftover) > 0.01:
-            st.warning(
-                f"Let op: Het berekende maandelijkse saldo "
-                f"(€{monthly_balance:,.2f}) komt niet overeen met het "
-                f"ingevoerde bedrag (€{data.monthly_leftover:,.2f}). "
-                f"Controleer je invoer."
-            )
 
 
 def show_financial_overview() -> None:
