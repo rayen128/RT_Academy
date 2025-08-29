@@ -1,9 +1,0 @@
-[MASTER]
-extension-pkg-whitelist=streamlit,numpy,plotly
-
-[MESSAGES CONTROL]
-# Disable import-error for external dependencies
-disable=import-error
-
-# Set maximum line length to 88 to match Black
-max-line-length=88
