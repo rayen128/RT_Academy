@@ -105,7 +105,7 @@ def get_simple_user_input() -> FinancialOverviewData:
 
     Displays a simple form with 4 essential financial input fields arranged
     in a two-column layout for quick financial overview entry. Monthly leftover
-    is automatically calculated from income minus expenses.
+    is automatically calculated from income min expenses.
 
     Returns
     -------
