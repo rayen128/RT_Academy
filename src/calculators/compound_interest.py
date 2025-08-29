@@ -29,12 +29,14 @@ def get_user_input() -> Tuple[InvestmentParameters, bool]:
     monthly_contribution = st.number_input(
         "Maandelijkse inleg (€)", min_value=0.0, value=100.0, step=10.0
     )
+    time_years = st.number_input(
+        "Tijd (jaren)", min_value=1, max_value=100, value=30, step=1
+    )
 
     # Default values for simple mode
     interest_rate = 7.0  # 7% default return
     compounds_per_year = 1  # Yearly compounding
     goal_amount = 0.0  # No goal
-    time_years = 30  # 30 years by default
 
     # Advanced mode toggle
     advanced_mode = st.checkbox("Geavanceerde instellingen")
@@ -58,7 +60,6 @@ def get_user_input() -> Tuple[InvestmentParameters, bool]:
             goal_amount = st.number_input(
                 "Doelbedrag (€)", min_value=0.0, value=0.0, step=1000.0
             )
-            time_years = st.number_input("Tijd (jaren)", min_value=0, value=30, step=1)
 
         # Convert compounding frequency to number
         frequency_dict = {
