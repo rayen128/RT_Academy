@@ -1,0 +1,23 @@
+[tool.pydocstyle]
+convention = "numpy"
+add-select = ["D404", "D415", "D417"]
+match = ".*\\.py"
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+
+[tool.pylint.messages_control]
+disable = ["C0111"]  # missing-docstring handled by pydocstyle
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
