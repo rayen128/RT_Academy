@@ -51,8 +51,12 @@ strict_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 
+[[tool.mypy.overrides]]
+module = ["streamlit.*", "plotly.*", "numpy.*"]
+ignore_missing_imports = true
+
 [tool.pylint.messages_control]
-disable = ["C0111"]  # missing-docstring handled by pydocstyle
+disable = ["C0111", "E0401"]  # missing-docstring handled by pydocstyle, ignore import-error
 
 [tool.pylint.format]
 max-line-length = 88

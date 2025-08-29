@@ -1,27 +1,15 @@
+"""Financial overview calculator for assets, liabilities, and cash flow analysis."""
+
+from typing import List, Tuple
+
 import streamlit as st
-from dataclasses import dataclass
-from typing import List
+
+from src.utils.models import Asset, Liability, MonthlyFlow
 
 
-@dataclass
-class Asset:
-    name: str
-    value: float
-
-
-@dataclass
-class Liability:
-    name: str
-    amount: float
-
-
-@dataclass
-class MonthlyFlow:
-    name: str
-    amount: float
-
-
-def get_user_input() -> tuple[List[Asset], List[Liability], List[MonthlyFlow], List[MonthlyFlow]]:
+def get_user_input() -> (  # pylint: disable=too-many-locals
+    Tuple[List[Asset], List[Liability], List[MonthlyFlow], List[MonthlyFlow]]
+):
     """Get user input for assets, liabilities, and monthly cash flows."""
     assets = []
     liabilities = []
@@ -30,69 +18,75 @@ def get_user_input() -> tuple[List[Asset], List[Liability], List[MonthlyFlow], L
 
     # Assets section
     st.write("### Bezittingen")
-    num_assets = st.number_input(
-        "Aantal bezittingen", min_value=0, value=1, step=1)
+    num_assets = st.number_input("Aantal bezittingen", min_value=0, value=1, step=1)
     for i in range(int(num_assets)):
         col1, col2 = st.columns(2)
         with col1:
             asset_name = st.text_input(
-                f"Naam bezitting {i + 1}", value=f"Bezitting {i + 1}")
+                f"Naam bezitting {i + 1}", value=f"Bezitting {i + 1}"
+            )
         with col2:
             asset_value = st.number_input(
-                f"Waarde bezitting {i + 1} (€)", min_value=0.0, value=0.0, step=100.0)
+                f"Waarde bezitting {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
+            )
         assets.append(Asset(name=asset_name, value=asset_value))
 
     # Liabilities section
     st.write("### Schulden")
-    num_liabilities = st.number_input(
-        "Aantal schulden", min_value=0, value=1, step=1)
+    num_liabilities = st.number_input("Aantal schulden", min_value=0, value=1, step=1)
     for i in range(int(num_liabilities)):
         col1, col2 = st.columns(2)
         with col1:
             liability_name = st.text_input(
-                f"Naam schuld {i + 1}", value=f"Schuld {i + 1}")
+                f"Naam schuld {i + 1}", value=f"Schuld {i + 1}"
+            )
         with col2:
             liability_amount = st.number_input(
-                f"Bedrag schuld {i + 1} (€)", min_value=0.0, value=0.0, step=100.0)
-        liabilities.append(
-            Liability(name=liability_name, amount=liability_amount))
+                f"Bedrag schuld {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
+            )
+        liabilities.append(Liability(name=liability_name, amount=liability_amount))
 
     # Monthly Income
     st.write("### Maandelijkse Inkomsten")
     num_income = st.number_input(
-        "Aantal inkomstenbronnen", min_value=0, value=1, step=1)
+        "Aantal inkomstenbronnen", min_value=0, value=1, step=1
+    )
     for i in range(int(num_income)):
         col1, col2 = st.columns(2)
         with col1:
             income_name = st.text_input(
-                f"Naam inkomstenbron {i + 1}", value=f"Inkomst {i + 1}")
+                f"Naam inkomstenbron {i + 1}", value=f"Inkomst {i + 1}"
+            )
         with col2:
             income_amount = st.number_input(
-                f"Bedrag inkomst {i + 1} (€)", min_value=0.0, value=0.0, step=100.0)
-        income_streams.append(MonthlyFlow(
-            name=income_name, amount=income_amount))
+                f"Bedrag inkomst {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
+            )
+        income_streams.append(MonthlyFlow(name=income_name, amount=income_amount))
 
     # Monthly Expenses
     st.write("### Maandelijkse Uitgaven")
-    num_expenses = st.number_input(
-        "Aantal uitgaven", min_value=0, value=1, step=1)
+    num_expenses = st.number_input("Aantal uitgaven", min_value=0, value=1, step=1)
     for i in range(int(num_expenses)):
         col1, col2 = st.columns(2)
         with col1:
             expense_name = st.text_input(
-                f"Naam uitgave {i + 1}", value=f"Uitgave {i + 1}")
+                f"Naam uitgave {i + 1}", value=f"Uitgave {i + 1}"
+            )
         with col2:
             expense_amount = st.number_input(
-                f"Bedrag uitgave {i + 1} (€)", min_value=0.0, value=0.0, step=100.0)
+                f"Bedrag uitgave {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
+            )
         expenses.append(MonthlyFlow(name=expense_name, amount=expense_amount))
 
     return assets, liabilities, income_streams, expenses
 
 
-def display_summary(assets: List[Asset],
-                    liabilities: List[Liability],
-                    income_streams: List[MonthlyFlow],
-                    expenses: List[MonthlyFlow]):
+def display_summary(
+    assets: List[Asset],
+    liabilities: List[Liability],
+    income_streams: List[MonthlyFlow],
+    expenses: List[MonthlyFlow],
+) -> None:
     """Display the financial summary."""
     # Calculate totals
     total_assets = sum(asset.value for asset in assets)
@@ -126,13 +120,16 @@ def display_summary(assets: List[Asset],
     with col3:
         label = "Maandelijks Over" if monthly_balance >= 0 else "Maandelijks Tekort"
         delta_color = "normal" if monthly_balance >= 0 else "inverse"
-        st.metric(label, f"€{abs(monthly_balance):,.2f}",
-                  delta=f"{'Positief' if monthly_balance >= 0 else 'Negatief'} saldo",
-                  delta_color=delta_color)
+        st.metric(
+            label,
+            f"€{abs(monthly_balance):,.2f}",
+            delta=f"{'Positief' if monthly_balance >= 0 else 'Negatief'} saldo",
+            delta_color=delta_color,
+        )
 
 
-def show_financial_overview():
-    """Main function to show the financial overview calculator."""
+def show_financial_overview() -> None:
+    """Show the financial overview calculator."""
     with st.expander("💶 Overzicht van je Huidige Situatie", expanded=False):
         assets, liabilities, income_streams, expenses = get_user_input()
         display_summary(assets, liabilities, income_streams, expenses)
