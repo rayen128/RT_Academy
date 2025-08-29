@@ -1,3 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rt-academy"
+version = "0.1.0"
+description = "Financial planning tools built with Streamlit"
+authors = [
+    {name = "RT Academy", email = "contact@rtacademy.com"},
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "streamlit>=1.24.0",
+    "plotly>=5.13.0",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.4.0",
+    "pydocstyle>=6.3.0",
+    "pylint>=3.0.0",
+    "pre-commit>=3.0.0",
+]
+
 [tool.pydocstyle]
 convention = "numpy"
 add-select = ["D404", "D415", "D417"]
@@ -9,9 +47,15 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 check_untyped_defs = true
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
 
 [tool.pylint.messages_control]
 disable = ["C0111"]  # missing-docstring handled by pydocstyle
+
+[tool.pylint.format]
+max-line-length = 88
 
 [tool.black]
 line-length = 88
@@ -21,3 +65,4 @@ include = '\\.pyi?$'
 [tool.isort]
 profile = "black"
 multi_line_output = 3
+line_length = 88
