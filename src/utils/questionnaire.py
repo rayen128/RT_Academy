@@ -1,22 +1,6 @@
 """Interactive Questionnaire Framework - Reusable step-by-step input collection.
 
-This module provides a flexible question    def __init__(  # pylint: disable=too-many-arguments,too-many-positiona    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
-        self,
-        key: str,
-        text: str,
-        placeholder: str = "",
-        max_chars: Optional[int] = None,
-        help_text: Optional[str] = None
-    ):nts
-        self,
-        key: str,
-        text: str,
-        min_value: Union[int, float] = 0,
-        max_value: Optional[Union[int, float]] = None,
-        step: Union[int, float] = 1,
-        format_str: str = "%.2f",
-        help_text: Optional[str] = None
-    ):ework for collecting user input
+This module provides a flexible questionnaire framework for collecting user input
 in a step-by-step manner using Streamlit session state management.
 
 Features
@@ -24,9 +8,11 @@ Features
 - Step-by-step question navigation with previous/next buttons
 - Session state management for persistent data
 - Type-safe question definitions with validation
-- Customizable question types (number input, text input, etc.)
+- Customizable question types (number, text, boolean, select, radio, slider,
+  multiselect, date)
 - Progress tracking and display
 - Automatic data collection and aggregation
+- Internationalization support for UI text
 
 Dependencies
 ------------
@@ -37,16 +23,28 @@ Dependencies
 
 Example
 -------
->>> from src.utils.questionnaire import Questionnaire, NumberQuestion
+>>> from src.utils.questionnaire import (
+...     Questionnaire, NumberQuestion, BooleanQuestion, SelectQuestion,
+...     QuestionnaireConfig, QuestionnaireUIText
+... )
 >>> questions = [
 ...     NumberQuestion("income", "What is your monthly income?", min_value=0.0),
-...     NumberQuestion("expenses", "What are your monthly expenses?", min_value=0.0)
+...     BooleanQuestion("has_savings", "Do you have savings?"),
+...     SelectQuestion("job_type", "Job type?", ["Full-time", "Part-time", "Contract"])
 ... ]
->>> questionnaire = Questionnaire("financial", questions)
+>>> # Custom UI text for English
+>>> ui_text = QuestionnaireUIText(
+...     previous_button="Previous",
+...     next_button="Next",
+...     complete_button="Complete",
+...     question_counter="### Question {current} of {total}"
+... )
+>>> config = QuestionnaireConfig(ui_text=ui_text)
+>>> questionnaire = Questionnaire("financial", questions, config)
 >>> # In Streamlit context:
 >>> data = questionnaire.run()
 >>> if data:
-...     print(f"Income: {data['income']}, Expenses: {data['expenses']}")
+...     print(f"Income: {data['income']}, Has savings: {data['has_savings']}")
 
 Note
 ----
@@ -55,10 +53,32 @@ session state and persists across Streamlit reruns.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Any, Dict, Optional, Sequence, Union
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import streamlit as st
+
+
+@dataclass
+class QuestionnaireUIText:
+    """Configuration for UI text and internationalization.
+
+    Attributes
+    ----------
+    previous_button : str
+        Text for the previous button
+    next_button : str
+        Text for the next button
+    complete_button : str
+        Text for the complete button
+    question_counter : str
+        Template for question counter (use {current} and {total} placeholders)
+    """
+
+    previous_button: str = "Vorige"
+    next_button: str = "Volgende"
+    complete_button: str = "Voltooi"
+    question_counter: str = "### Vraag {current} van {total}"
 
 
 @dataclass
@@ -75,12 +95,15 @@ class QuestionnaireConfig:
         Whether to display previously entered answers
     navigation_style : str
         Button layout style ('columns' or 'inline')
+    ui_text : QuestionnaireUIText
+        UI text configuration for internationalization
     """
 
     session_prefix: str = "questionnaire"
     show_progress: bool = True
     show_previous_answers: bool = True
     navigation_style: str = "columns"
+    ui_text: QuestionnaireUIText = field(default_factory=QuestionnaireUIText)
 
 
 class Question(ABC):
@@ -119,7 +142,7 @@ class Question(ABC):
         Any
             Current input value from the user
         """
-        ...  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
     def get_default_value(self) -> Any:
@@ -130,7 +153,7 @@ class Question(ABC):
         Any
             Default value to use when no previous value exists
         """
-        ...  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
 
 class NumberQuestion(Question):
@@ -140,7 +163,7 @@ class NumberQuestion(Question):
     step size control, and currency formatting.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         key: str,
         text: str,
@@ -205,7 +228,7 @@ class TextQuestion(Question):
     and basic validation.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         key: str,
         text: str,
@@ -251,6 +274,345 @@ class TextQuestion(Question):
     def get_default_value(self) -> str:
         """Get default value (empty string)."""
         return ""
+
+
+class BooleanQuestion(Question):
+    """Boolean question with checkbox input.
+
+    Supports yes/no or true/false questions using Streamlit checkbox.
+    """
+
+    def __init__(
+        self,
+        key: str,
+        text: str,
+        default_value: bool = False,
+        help_text: Optional[str] = None,
+    ):
+        """Initialize a boolean question.
+
+        Parameters
+        ----------
+        key : str
+            Unique identifier for this question
+        text : str
+            Question text to display
+        default_value : bool
+            Default checkbox state
+        help_text : Optional[str]
+            Optional help text
+        """
+        super().__init__(key, text, help_text)
+        self.default_value = default_value
+
+    def render(self, current_value: Any = None) -> bool:
+        """Render checkbox widget."""
+        value: bool = (
+            current_value if current_value is not None else self.get_default_value()
+        )
+
+        result = st.checkbox(
+            self.text,
+            value=value,
+            help=self.help_text,
+            key=f"input_{self.key}",
+        )
+        return bool(result)
+
+    def get_default_value(self) -> bool:
+        """Get default value."""
+        return self.default_value
+
+
+class SelectQuestion(Question):
+    """Single selection question with dropdown.
+
+    Supports selecting one option from a list using Streamlit selectbox.
+    """
+
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self,
+        key: str,
+        text: str,
+        options: Sequence[str],
+        default_index: int = 0,
+        help_text: Optional[str] = None,
+    ):
+        """Initialize a select question.
+
+        Parameters
+        ----------
+        key : str
+            Unique identifier for this question
+        text : str
+            Question text to display
+        options : Sequence[str]
+            List of options to choose from
+        default_index : int
+            Index of default option
+        help_text : Optional[str]
+            Optional help text
+        """
+        super().__init__(key, text, help_text)
+        self.options = list(options)
+        self.default_index = default_index
+
+    def render(self, current_value: Any = None) -> str:
+        """Render selectbox widget."""
+        if current_value is not None and current_value in self.options:
+            index = self.options.index(current_value)
+        else:
+            index = self.default_index
+
+        result = st.selectbox(
+            self.text,
+            options=self.options,
+            index=index,
+            help=self.help_text,
+            key=f"input_{self.key}",
+        )
+        return str(result)
+
+    def get_default_value(self) -> str:
+        """Get default value."""
+        return self.options[self.default_index] if self.options else ""
+
+
+class RadioQuestion(Question):
+    """Single selection question with radio buttons.
+
+    Supports selecting one option from a list using Streamlit radio buttons.
+    """
+
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self,
+        key: str,
+        text: str,
+        options: Sequence[str],
+        default_index: int = 0,
+        horizontal: bool = False,
+        help_text: Optional[str] = None,
+    ):
+        """Initialize a radio question.
+
+        Parameters
+        ----------
+        key : str
+            Unique identifier for this question
+        text : str
+            Question text to display
+        options : Sequence[str]
+            List of options to choose from
+        default_index : int
+            Index of default option
+        horizontal : bool
+            Whether to display options horizontally
+        help_text : Optional[str]
+            Optional help text
+        """
+        super().__init__(key, text, help_text)
+        self.options = list(options)
+        self.default_index = default_index
+        self.horizontal = horizontal
+
+    def render(self, current_value: Any = None) -> str:
+        """Render radio buttons widget."""
+        if current_value is not None and current_value in self.options:
+            index = self.options.index(current_value)
+        else:
+            index = self.default_index
+
+        result = st.radio(
+            self.text,
+            options=self.options,
+            index=index,
+            horizontal=self.horizontal,
+            help=self.help_text,
+            key=f"input_{self.key}",
+        )
+        return str(result)
+
+    def get_default_value(self) -> str:
+        """Get default value."""
+        return self.options[self.default_index] if self.options else ""
+
+
+class SliderQuestion(Question):
+    """Numeric slider question with range selection.
+
+    Supports selecting a numeric value within a range using Streamlit slider.
+    """
+
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self,
+        key: str,
+        text: str,
+        min_value: Union[int, float] = 0,
+        max_value: Union[int, float] = 100,
+        default_value: Optional[Union[int, float]] = None,
+        step: Union[int, float] = 1,
+        format_str: str = "%d",
+        help_text: Optional[str] = None,
+    ):
+        """Initialize a slider question.
+
+        Parameters
+        ----------
+        key : str
+            Unique identifier for this question
+        text : str
+            Question text to display
+        min_value : Union[int, float]
+            Minimum value
+        max_value : Union[int, float]
+            Maximum value
+        default_value : Optional[Union[int, float]]
+            Default value (None uses min_value)
+        step : Union[int, float]
+            Step size
+        format_str : str
+            Format string for display
+        help_text : Optional[str]
+            Optional help text
+        """
+        super().__init__(key, text, help_text)
+        self.min_value = min_value
+        self.max_value = max_value
+        self.default_value = default_value if default_value is not None else min_value
+        self.step = step
+        self.format_str = format_str
+
+    def render(self, current_value: Any = None) -> Union[int, float]:
+        """Render slider widget."""
+        value: Union[int, float] = (
+            current_value if current_value is not None else self.get_default_value()
+        )
+
+        result = st.slider(
+            self.text,
+            min_value=self.min_value,
+            max_value=self.max_value,
+            value=value,
+            step=self.step,
+            format=self.format_str,
+            help=self.help_text,
+            key=f"input_{self.key}",
+        )
+        return float(result) if isinstance(self.step, float) else int(result)
+
+    def get_default_value(self) -> Union[int, float]:
+        """Get default value."""
+        return self.default_value
+
+
+class MultiSelectQuestion(Question):
+    """Multiple selection question with checkboxes.
+
+    Supports selecting multiple options from a list using Streamlit multiselect.
+    """
+
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self,
+        key: str,
+        text: str,
+        options: Sequence[str],
+        default_values: Optional[Sequence[str]] = None,
+        help_text: Optional[str] = None,
+    ):
+        """Initialize a multiselect question.
+
+        Parameters
+        ----------
+        key : str
+            Unique identifier for this question
+        text : str
+            Question text to display
+        options : Sequence[str]
+            List of options to choose from
+        default_values : Optional[Sequence[str]]
+            List of default selected options
+        help_text : Optional[str]
+            Optional help text
+        """
+        super().__init__(key, text, help_text)
+        self.options = list(options)
+        self.default_values = list(default_values) if default_values else []
+
+    def render(self, current_value: Any = None) -> List[str]:
+        """Render multiselect widget."""
+        if current_value is not None and isinstance(current_value, (list, tuple)):
+            default = [v for v in current_value if v in self.options]
+        else:
+            default = self.get_default_value()
+
+        result = st.multiselect(
+            self.text,
+            options=self.options,
+            default=default,
+            help=self.help_text,
+            key=f"input_{self.key}",
+        )
+        return list(result)
+
+    def get_default_value(self) -> List[str]:
+        """Get default value."""
+        return self.default_values.copy()
+
+
+class DateQuestion(Question):
+    """Date selection question.
+
+    Supports selecting a date using Streamlit date input.
+    """
+
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self,
+        key: str,
+        text: str,
+        default_value: Optional[Any] = None,  # Can be datetime.date or None
+        min_value: Optional[Any] = None,
+        max_value: Optional[Any] = None,
+        help_text: Optional[str] = None,
+    ):
+        """Initialize a date question.
+
+        Parameters
+        ----------
+        key : str
+            Unique identifier for this question
+        text : str
+            Question text to display
+        default_value : Optional[datetime.date]
+            Default date value
+        min_value : Optional[datetime.date]
+            Minimum allowed date
+        max_value : Optional[datetime.date]
+            Maximum allowed date
+        help_text : Optional[str]
+            Optional help text
+        """
+        super().__init__(key, text, help_text)
+        self.default_value = default_value
+        self.min_value = min_value
+        self.max_value = max_value
+
+    def render(self, current_value: Any = None) -> Any:
+        """Render date input widget."""
+        value = current_value if current_value is not None else self.get_default_value()
+
+        result = st.date_input(
+            self.text,
+            value=value,
+            min_value=self.min_value,
+            max_value=self.max_value,
+            help=self.help_text,
+            key=f"input_{self.key}",
+        )
+        return result
+
+    def get_default_value(self) -> Any:
+        """Get default value."""
+        return self.default_value
 
 
 class Questionnaire:
@@ -319,7 +681,11 @@ class Questionnaire:
         total_steps = len(self.questions)
         progress = (current_step + 1) / total_steps
 
-        st.write(f"### Vraag {current_step + 1} van {total_steps}")
+        st.write(
+            self.config.ui_text.question_counter.format(
+                current=current_step + 1, total=total_steps
+            )
+        )
         st.progress(progress)
 
     def _show_previous_answers(self, current_step: int) -> None:
@@ -337,6 +703,12 @@ class Questionnaire:
                     formatted_value = (
                         f"€{value:,.2f}" if "€" in question.text else f"{value:,.2f}"
                     )
+                elif isinstance(question, BooleanQuestion):
+                    formatted_value = "Ja" if value else "Nee"
+                elif isinstance(question, MultiSelectQuestion):
+                    formatted_value = ", ".join(value) if value else "Geen selectie"
+                elif isinstance(question, DateQuestion):
+                    formatted_value = str(value) if value else "Geen datum"
                 else:
                     formatted_value = str(value)
 
@@ -356,12 +728,15 @@ class Questionnaire:
         if self.config.navigation_style == "columns":
             col1, col2 = st.columns(2)
         else:
-            col1 = col2 = st
+            # For inline navigation, use the main streamlit object
+            col1 = col2 = st.container()
 
         # Previous button (except for first question)
         if current_step > 0:
             with col1:
-                if st.button("Vorige", key=f"prev_{current_step}"):
+                if st.button(
+                    self.config.ui_text.previous_button, key=f"prev_{current_step}"
+                ):
                     self._store_answer(question.key, current_value)
                     self._set_current_step(current_step - 1)
                     st.rerun()
@@ -369,10 +744,10 @@ class Questionnaire:
         # Next/Complete button
         with col2:
             if current_step < total_steps - 1:
-                button_text = "Volgende"
+                button_text = self.config.ui_text.next_button
                 button_key = f"next_{current_step}"
             else:
-                button_text = "Voltooi"
+                button_text = self.config.ui_text.complete_button
                 button_key = f"complete_{current_step}"
 
             if st.button(button_text, key=button_key):

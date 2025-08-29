@@ -32,11 +32,12 @@ to ensure input consistency.
 """
 
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import streamlit as st
 
 from src.utils.models import Asset, Liability, MonthlyFlow
+from src.utils.questionnaire import NumberQuestion, Questionnaire, QuestionnaireConfig
 
 
 @dataclass
@@ -98,6 +99,162 @@ class FinancialOverviewData:  # pylint: disable=too-many-instance-attributes
     liabilities: List[Liability]
     income_streams: List[MonthlyFlow]
     expense_streams: List[MonthlyFlow]
+
+
+def create_financial_questionnaire() -> Questionnaire:
+    """Create a questionnaire for collecting financial overview data.
+
+    Creates a step-by-step questionnaire to collect the user's financial
+    information including income, expenses, assets, and debts.
+
+    Returns
+    -------
+    Questionnaire
+        Configured questionnaire with financial questions
+
+    Example
+    -------
+    >>> questionnaire = create_financial_questionnaire()
+    >>> # In Streamlit context:
+    >>> data = questionnaire.run()
+    >>> if data:
+    ...     print(f"Monthly income: €{data['monthly_income']:,.2f}")
+
+    Note
+    ----
+    The questionnaire collects data for simple financial overview calculation.
+    All monetary values are in Euros (€).
+    """
+    questions = [
+        NumberQuestion(
+            key="monthly_income",
+            text="Wat is je maandelijks netto inkomen?",
+            min_value=0.0,
+            step=100.0,
+            format_str="%.2f",
+            help_text="Voer je totale maandelijkse netto inkomen in euro's in",
+        ),
+        NumberQuestion(
+            key="monthly_expenses",
+            text="Wat zijn je totale maandelijkse uitgaven?",
+            min_value=0.0,
+            step=100.0,
+            format_str="%.2f",
+            help_text=(
+                "Voer je totale maandelijkse uitgaven in euro's in "
+                "(huur, boodschappen, verzekeringen, etc.)"
+            ),
+        ),
+        NumberQuestion(
+            key="total_assets",
+            text="Wat is de totale waarde van je bezittingen/spaargeld?",
+            min_value=0.0,
+            step=1000.0,
+            format_str="%.2f",
+            help_text=(
+                "Voer de totale waarde van je bezittingen in euro's in "
+                "(spaargeld, investeringen, huis, auto, etc.)"
+            ),
+        ),
+        NumberQuestion(
+            key="total_debt",
+            text="Wat is het totale bedrag van je schulden?",
+            min_value=0.0,
+            step=1000.0,
+            format_str="%.2f",
+            help_text=(
+                "Voer het totale bedrag van je schulden in euro's in "
+                "(hypotheek, leningen, creditcards, etc.)"
+            ),
+        ),
+    ]
+
+    config = QuestionnaireConfig(
+        session_prefix="financial_overview",
+        show_progress=True,
+        show_previous_answers=True,
+        navigation_style="columns",
+    )
+
+    return Questionnaire("financial_data", questions, config)
+
+
+def questionnaire_data_to_financial_overview(
+    data: Dict[str, float],
+) -> FinancialOverviewData:
+    """Convert questionnaire data to FinancialOverviewData structure.
+
+    Transforms the flat dictionary returned by the questionnaire into
+    a structured FinancialOverviewData object with calculated values.
+
+    Parameters
+    ----------
+    data : Dict[str, float]
+        Dictionary containing questionnaire responses with keys:
+        'monthly_income', 'monthly_expenses', 'total_assets', 'total_debt'
+
+    Returns
+    -------
+    FinancialOverviewData
+        Complete financial data structure with calculated monthly leftover
+        and single-item lists for consistency
+
+    Example
+    -------
+    >>> data = {
+    ...     'monthly_income': 3000.0,
+    ...     'monthly_expenses': 2500.0,
+    ...     'total_assets': 10000.0,
+    ...     'total_debt': 5000.0
+    ... }
+    >>> overview = questionnaire_data_to_financial_overview(data)
+    >>> overview.monthly_leftover
+    500.0
+
+    Note
+    ----
+    Creates single-item lists for assets, liabilities, income_streams,
+    and expense_streams to maintain consistency with advanced mode structure.
+    """
+    monthly_income = data.get("monthly_income", 0.0)
+    monthly_expenses = data.get("monthly_expenses", 0.0)
+    total_assets = data.get("total_assets", 0.0)
+    total_debt = data.get("total_debt", 0.0)
+
+    # Calculate monthly leftover
+    monthly_leftover = monthly_income - monthly_expenses
+
+    # Create simple data structures for consistency
+    assets = (
+        [Asset(name="Totale bezittingen", value=total_assets)]
+        if total_assets > 0
+        else []
+    )
+    liabilities = (
+        [Liability(name="Totale schulden", amount=total_debt)] if total_debt > 0 else []
+    )
+    income_streams = (
+        [MonthlyFlow(name="Maandelijks inkomen", amount=monthly_income)]
+        if monthly_income > 0
+        else []
+    )
+    expense_streams = (
+        [MonthlyFlow(name="Maandelijkse uitgaven", amount=monthly_expenses)]
+        if monthly_expenses > 0
+        else []
+    )
+
+    return FinancialOverviewData(
+        monthly_income=monthly_income,
+        monthly_expenses=monthly_expenses,
+        monthly_leftover=monthly_leftover,
+        total_assets=total_assets,
+        total_debt=total_debt,
+        assets=assets,
+        liabilities=liabilities,
+        income_streams=income_streams,
+        expense_streams=expense_streams,
+    )
 
 
 def get_simple_user_input() -> FinancialOverviewData:
@@ -414,8 +571,8 @@ def display_summary(data: FinancialOverviewData) -> None:
 def show_financial_overview() -> None:
     """Display the complete financial overview calculator interface.
 
-    Main entry point for the financial overview calculator. Creates an expandable
-    section with mode selection, input collection, and results display.
+    Main entry point for the financial overview calculator. Uses a step-by-step
+    questionnaire to collect financial data, then displays comprehensive results.
 
     Returns
     -------
@@ -430,11 +587,55 @@ def show_financial_overview() -> None:
 
     Note
     ----
-    Designed to be called from the main Streamlit application.
-    Results are only displayed after the user clicks the calculate button.
-    The expander starts collapsed to save screen space.
+    Uses questionnaire-based data collection for improved user experience.
+    Results are displayed automatically when the questionnaire is completed.
+    The expander starts expanded to show the questionnaire.
     """
-    with st.expander("💶 Overzicht van je Huidige Situatie", expanded=False):
+    with st.expander("💶 Overzicht van je Huidige Situatie", expanded=True):
+        st.write("### Financiële Vragenlijst")
+        st.write("Beantwoord de volgende vragen om je financiële overzicht te krijgen:")
+
+        # Create and run the questionnaire
+        questionnaire = create_financial_questionnaire()
+        questionnaire_data = questionnaire.run()
+
+        # If questionnaire is completed, show results
+        if questionnaire_data is not None:
+            st.write("---")
+            st.success("Vragenlijst voltooid! Hier is je financiële overzicht:")
+
+            # Convert questionnaire data to financial overview data
+            financial_data = questionnaire_data_to_financial_overview(
+                questionnaire_data
+            )
+
+            # Display the summary
+            display_summary(financial_data)
+
+            # Add reset button to allow starting over
+            st.write("---")
+            if st.button("Opnieuw beginnen", key="reset_questionnaire"):
+                questionnaire.reset()
+                st.rerun()
+
+
+def show_financial_overview_legacy() -> None:
+    """Display the legacy financial overview calculator interface.
+
+    Legacy version that uses the original form-based input method.
+    Kept for backward compatibility.
+
+    Returns
+    -------
+    None
+        This function creates Streamlit UI components directly
+
+    Note
+    ----
+    This is the original implementation before questionnaire integration.
+    Use show_financial_overview() for the new questionnaire-based interface.
+    """
+    with st.expander("💶 Overzicht van je Huidige Situatie (Legacy)", expanded=False):
         data, calculate_clicked = get_user_input()
 
         if calculate_clicked:
