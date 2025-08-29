@@ -1,3 +1,1 @@
-"""
-Calculator modules for financial planning.
-"""
+"""Calculator modules for financial planning."""

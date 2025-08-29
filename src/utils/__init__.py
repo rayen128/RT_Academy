@@ -1,3 +1,1 @@
-"""
-Utility functions and shared components.
-"""
+"""Utility functions and shared components."""

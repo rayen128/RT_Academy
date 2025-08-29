@@ -1,3 +1,1 @@
-"""
-Financial Planning Tools package.
-"""
+"""Financial Planning Tools package."""
