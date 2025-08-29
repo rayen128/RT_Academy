@@ -53,6 +53,26 @@ mypy src/
 pydocstyle src/
 ```
 
+## Maintenance
+
+### Update pre-commit hooks:
+```bash
+# Update all hooks to latest versions
+pre-commit autoupdate
+
+# Update specific repository
+pre-commit autoupdate --repo https://github.com/pre-commit/pre-commit-hooks
+```
+
+### Check for outdated dependencies:
+```bash
+# Check what would be updated
+pip list --outdated
+
+# Update dependencies in pyproject.toml if needed
+pip install -e .[dev] --upgrade
+```
+
 ## Documentation Standards
 
 Please follow the guidelines in `docs/DOCUMENTATION_STANDARDS.md` when writing code.

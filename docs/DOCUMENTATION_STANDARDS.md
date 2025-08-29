@@ -63,25 +63,25 @@ from .utils import helper_function
 @dataclass
 class ExampleClass:
     """[CLASS_NAME] represents [WHAT_IT_REPRESENTS].
-    
+
     Detailed description of the class's purpose and behavior.
-    
+
     Attributes:
         attr1 (type): Description of attribute 1
         attr2 (type): Description of attribute 2
-    
+
     Properties:
         prop1 (type): Description of property 1
         prop2 (type): Description of property 2
-    
+
     Class Attributes:
         CLASS_ATTR (type): Description of class attribute
-    
+
     Example:
         >>> obj = ExampleClass(attr1=value1, attr2=value2)
         >>> obj.method()
         Expected output
-    
+
     Note:
         Important implementation details or usage warnings
     """
@@ -96,29 +96,29 @@ def example_function(
     **kwargs: Any
 ) -> ReturnType:
     """[VERB] [WHAT_IT_DOES] with [THESE_INPUTS].
-    
+
     Extended description of function behavior.
-    
+
     Args:
         param1 (type1): Description of param1
             Indented additional details if needed
         param2 (type2): Description of param2
         *args: Description of variable args
         **kwargs: Description of keyword args
-    
+
     Returns:
         ReturnType: Description of return value
             Multiple lines for complex returns
-    
+
     Raises:
         ErrorType1: When and why this error occurs
         ErrorType2: When and why this error occurs
-    
+
     Example:
         >>> result = example_function(1, "test")
         >>> print(result)
         Expected output
-    
+
     Note:
         Important implementation notes
         Performance considerations
@@ -157,7 +157,7 @@ error_msg = (
 ### Basic Types
 ```python
 from typing import (
-    List, Dict, Tuple, Set, Optional, Union, 
+    List, Dict, Tuple, Set, Optional, Union,
     Sequence, Mapping, Any, TypeVar, Generic
 )
 
@@ -193,14 +193,14 @@ def calculate_interest(
     rate: Percentage
 ) -> EuroAmount:
     """Calculate simple interest.
-    
+
     Args:
         principal: Initial amount
         rate: Interest rate as percentage
-    
+
     Returns:
         Interest earned
-    
+
     Example:
         >>> calculate_interest(EuroAmount(100.0), Percentage(5.0))
         5.0
