@@ -34,10 +34,57 @@ to ensure input consistency.
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
+import plotly.graph_objects as go
 import streamlit as st
 
 from src.utils.models import Asset, Liability, MonthlyFlow
 from src.utils.questionnaire import NumberQuestion, Questionnaire, QuestionnaireConfig
+
+
+def validate_financial_consistency(
+    monthly_income: float, monthly_expenses: float, monthly_leftover: float
+) -> Tuple[bool, str]:
+    """Validate consistency between income, expenses and leftover amount.
+
+    Parameters
+    ----------
+    monthly_income : float
+        Total monthly income in euros
+    monthly_expenses : float
+        Total monthly expenses in euros
+    monthly_leftover : float
+        User-reported monthly leftover amount in euros
+
+    Returns
+    -------
+    Tuple[bool, str]
+        Boolean indicating if values are consistent and warning message if not
+
+    Example
+    -------
+    >>> is_valid, message = validate_financial_consistency(3000.0, 2500.0, 500.0)
+    >>> is_valid
+    True
+    >>> is_valid, message = validate_financial_consistency(3000.0, 2500.0, 300.0)
+    >>> is_valid
+    False
+    """
+    calculated_leftover = monthly_income - monthly_expenses
+    difference = abs(calculated_leftover - monthly_leftover)
+    tolerance = 50.0  # €50 tolerance
+
+    if difference <= tolerance:
+        return True, ""
+
+    if monthly_leftover > calculated_leftover:
+        return (
+            False,
+            f"⚠️ Je zegt €{monthly_leftover:,.2f} over te houden, maar op basis van je inkomen (€{monthly_income:,.2f}) en uitgaven (€{monthly_expenses:,.2f}) zou je €{calculated_leftover:,.2f} over moeten houden. Controleer je bedragen.",
+        )
+    return (
+        False,
+        f"⚠️ Op basis van je inkomen (€{monthly_income:,.2f}) en uitgaven (€{monthly_expenses:,.2f}) zou je €{calculated_leftover:,.2f} over moeten houden, maar je zegt slechts €{monthly_leftover:,.2f} over te houden. Mogelijk heb je uitgaven vergeten?",
+    )
 
 
 @dataclass
@@ -105,7 +152,7 @@ def create_financial_questionnaire() -> Questionnaire:
     """Create a questionnaire for collecting financial overview data.
 
     Creates a step-by-step questionnaire to collect the user's financial
-    information including income, expenses, assets, and debts.
+    information including income, expenses, leftover money, assets, and debts.
 
     Returns
     -------
@@ -128,7 +175,7 @@ def create_financial_questionnaire() -> Questionnaire:
     questions = [
         NumberQuestion(
             key="monthly_income",
-            text="Wat is je maandelijks netto inkomen?",
+            text="Wat is je maandelijks netto totaal inkomen gemiddeld genomen?",
             min_value=0.0,
             step=100.0,
             format_str="%.2f",
@@ -146,8 +193,20 @@ def create_financial_questionnaire() -> Questionnaire:
             ),
         ),
         NumberQuestion(
+            key="monthly_leftover",
+            text="Hoeveel geld houd je gemiddeld maandelijks over om te kunnen sparen of beleggen?",
+            min_value=0.0,
+            step=50.0,
+            format_str="%.2f",
+            help_text=(
+                "(Tip: je kunt dit nagaan door je bankafschriften te checken. "
+                "Reken alleen echt het geld dat je overhoudt. "
+                "Dus niet geld dat je apart zet voor een vakantie, een nieuwe auto of andere spaardoelen.)"
+            ),
+        ),
+        NumberQuestion(
             key="total_assets",
-            text="Wat is de totale waarde van je bezittingen/spaargeld?",
+            text="Hoeveel spaargeld, beleggingen of andere bezittingen bezit je nu?",
             min_value=0.0,
             step=1000.0,
             format_str="%.2f",
@@ -158,14 +217,11 @@ def create_financial_questionnaire() -> Questionnaire:
         ),
         NumberQuestion(
             key="total_debt",
-            text="Wat is het totale bedrag van je schulden?",
+            text="Wat is je totaal aantal schulden?",
             min_value=0.0,
             step=1000.0,
             format_str="%.2f",
-            help_text=(
-                "Voer het totale bedrag van je schulden in euro's in "
-                "(hypotheek, leningen, creditcards, etc.)"
-            ),
+            help_text='Als je geen schulden hebt, vul hier "0" in.',
         ),
     ]
 
@@ -185,18 +241,19 @@ def questionnaire_data_to_financial_overview(
     """Convert questionnaire data to FinancialOverviewData structure.
 
     Transforms the flat dictionary returned by the questionnaire into
-    a structured FinancialOverviewData object with calculated values.
+    a structured FinancialOverviewData object with user-provided values.
 
     Parameters
     ----------
     data : Dict[str, float]
         Dictionary containing questionnaire responses with keys:
-        'monthly_income', 'monthly_expenses', 'total_assets', 'total_debt'
+        'monthly_income', 'monthly_expenses', 'monthly_leftover',
+        'total_assets', 'total_debt'
 
     Returns
     -------
     FinancialOverviewData
-        Complete financial data structure with calculated monthly leftover
+        Complete financial data structure with user-provided monthly leftover
         and single-item lists for consistency
 
     Example
@@ -204,25 +261,25 @@ def questionnaire_data_to_financial_overview(
     >>> data = {
     ...     'monthly_income': 3000.0,
     ...     'monthly_expenses': 2500.0,
+    ...     'monthly_leftover': 400.0,
     ...     'total_assets': 10000.0,
     ...     'total_debt': 5000.0
     ... }
     >>> overview = questionnaire_data_to_financial_overview(data)
     >>> overview.monthly_leftover
-    500.0
+    400.0
 
     Note
     ----
     Creates single-item lists for assets, liabilities, income_streams,
     and expense_streams to maintain consistency with advanced mode structure.
+    Uses user-provided monthly_leftover instead of calculating it.
     """
     monthly_income = data.get("monthly_income", 0.0)
     monthly_expenses = data.get("monthly_expenses", 0.0)
+    monthly_leftover = data.get("monthly_leftover", 0.0)
     total_assets = data.get("total_assets", 0.0)
     total_debt = data.get("total_debt", 0.0)
-
-    # Calculate monthly leftover
-    monthly_leftover = monthly_income - monthly_expenses
 
     # Create simple data structures for consistency
     assets = (
@@ -291,25 +348,64 @@ def get_simple_user_input() -> FinancialOverviewData:
     col1, col2 = st.columns(2)
     with col1:
         monthly_income = st.number_input(
-            "Maandelijks inkomen (€)", min_value=0.0, value=3000.0, step=100.0
+            "Wat is je maandelijks netto totaal inkomen gemiddeld genomen? (€)",
+            min_value=0.0,
+            value=3000.0,
+            step=100.0,
+            key="simple_monthly_income",
+        )
+        monthly_leftover = st.number_input(
+            "Hoeveel geld houd je gemiddeld maandelijks over om te kunnen sparen of beleggen? (€)",
+            min_value=0.0,
+            value=500.0,
+            step=50.0,
+            help="Tip: je kunt dit nagaan door je bankafschriften te checken. Reken alleen echt het geld dat je overhoudt.",
+            key="simple_monthly_leftover",
         )
         total_assets = st.number_input(
-            "Totale bezittingen/spaargeld (€)",
+            "Hoeveel spaargeld, beleggingen of andere bezittingen bezit je nu? (€)",
             min_value=0.0,
             value=10000.0,
             step=1000.0,
+            key="simple_total_assets",
         )
 
     with col2:
         monthly_expenses = st.number_input(
-            "Maandelijkse uitgaven (€)", min_value=0.0, value=2500.0, step=100.0
+            "Wat zijn je totale maandelijkse uitgaven? (€)",
+            min_value=0.0,
+            value=2500.0,
+            step=100.0,
+            key="simple_monthly_expenses",
         )
         total_debt = st.number_input(
-            "Totale schulden (€)", min_value=0.0, value=0.0, step=1000.0
+            "Wat is je totaal aantal schulden? (€)",
+            min_value=0.0,
+            value=0.0,
+            step=1000.0,
+            help="Als je geen schulden hebt, vul hier 0 in.",
+            key="simple_total_debt",
         )
 
-    # Calculate monthly leftover
-    monthly_leftover = monthly_income - monthly_expenses
+    # Validation
+    is_consistent, warning_message = validate_financial_consistency(
+        monthly_income, monthly_expenses, monthly_leftover
+    )
+
+    if not is_consistent:
+        st.warning(warning_message)
+
+        # Option to auto-correct
+        calculated_leftover = monthly_income - monthly_expenses
+        if st.button(
+            f"Gebruik berekende waarde: €{calculated_leftover:,.2f}",
+            key="auto_correct_simple",
+        ):
+            st.session_state["simple_monthly_leftover"] = calculated_leftover
+            st.rerun()
+
+    # Use user-provided monthly leftover instead of calculating it
+    # monthly_leftover = monthly_income - monthly_expenses  # Old calculation
 
     # Create simple data structures for consistency with advanced mode
     assets = (
@@ -448,6 +544,20 @@ def get_advanced_user_input() -> (
     monthly_expenses = sum(expense.amount for expense in expense_streams)
     monthly_leftover = monthly_income - monthly_expenses
 
+    # Show validation info in advanced mode
+    if monthly_income > 0 and monthly_expenses > 0:
+        st.write("### 📊 Berekend Overzicht")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Totale Inkomsten", f"€{monthly_income:,.2f}")
+        with col2:
+            st.metric("Totale Uitgaven", f"€{monthly_expenses:,.2f}")
+        with col3:
+            leftover_label = (
+                "Maandelijks Over" if monthly_leftover >= 0 else "Maandelijks Tekort"
+            )
+            st.metric(leftover_label, f"€{abs(monthly_leftover):,.2f}")
+
     return FinancialOverviewData(
         monthly_income=monthly_income,
         monthly_expenses=monthly_expenses,
@@ -501,11 +611,93 @@ def get_user_input() -> Tuple[FinancialOverviewData, bool]:
     return data, calculate_button
 
 
+def create_cash_flow_visualization(data: FinancialOverviewData) -> go.Figure:
+    """Create a bar chart visualization for monthly cash flow.
+
+    Parameters
+    ----------
+    data : FinancialOverviewData
+        Complete financial data structure
+
+    Returns
+    -------
+    go.Figure
+        Plotly figure showing income, expenses, and leftover amount
+    """
+    categories = ["Inkomsten", "Uitgaven", "Over/Tekort"]
+    amounts = [data.monthly_income, data.monthly_expenses, data.monthly_leftover]
+    colors = ["green", "red", "blue" if data.monthly_leftover >= 0 else "orange"]
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Bar(
+            x=categories,
+            y=amounts,
+            marker_color=colors,
+            text=[f"€{amt:,.0f}" for amt in amounts],
+            textposition="auto",
+        )
+    )
+
+    fig.update_layout(
+        title="Maandelijkse Kasstromen",
+        xaxis_title="Categorieën",
+        yaxis_title="Bedrag (€)",
+        showlegend=False,
+        height=400,
+    )
+
+    return fig
+
+
+def create_net_worth_visualization(data: FinancialOverviewData) -> go.Figure:
+    """Create a bar chart visualization for net worth calculation.
+
+    Parameters
+    ----------
+    data : FinancialOverviewData
+        Complete financial data structure
+
+    Returns
+    -------
+    go.Figure
+        Plotly figure showing assets, liabilities, and net worth
+    """
+    net_worth = data.total_assets - data.total_debt
+
+    categories = ["Bezittingen", "Schulden", "Eigen Vermogen"]
+    # Make debt negative for visualization
+    amounts = [data.total_assets, -data.total_debt, net_worth]
+    colors = ["green", "red", "blue" if net_worth >= 0 else "orange"]
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Bar(
+            x=categories,
+            y=amounts,
+            marker_color=colors,
+            text=[f"€{abs(amt):,.0f}" for amt in amounts],
+            textposition="auto",
+        )
+    )
+
+    fig.update_layout(
+        title="Eigen Vermogen Overzicht",
+        xaxis_title="Categorieën",
+        yaxis_title="Bedrag (€)",
+        showlegend=False,
+        height=400,
+    )
+
+    return fig
+
+
 def display_summary(data: FinancialOverviewData) -> None:
-    """Display comprehensive financial summary with metrics.
+    """Display comprehensive financial summary with metrics and visualizations.
 
     Calculates and displays key financial metrics including net worth and
-    monthly balance from the provided financial data.
+    monthly leftover from the provided financial data, along with interactive
+    charts showing cash flow and net worth breakdown.
 
     Parameters
     ----------
@@ -516,7 +708,7 @@ def display_summary(data: FinancialOverviewData) -> None:
     Returns
     -------
     None
-        This function updates the Streamlit UI directly with metrics
+        This function updates the Streamlit UI directly with metrics and charts
 
     Example
     -------
@@ -527,18 +719,21 @@ def display_summary(data: FinancialOverviewData) -> None:
     ...     assets=[], liabilities=[], income_streams=[], expense_streams=[]
     ... )
     >>> display_summary(data)
-    # Displays metrics: Net Worth: €5,000.00, Monthly Balance: €500.00
+    # Displays metrics and charts for financial overview
 
     Note
     ----
-    Monthly leftover is calculated automatically as income minus expenses.
+    Uses the user-provided monthly_leftover value instead of calculating it.
+    Includes interactive visualizations for better understanding of cash flow
+    and net worth.
     """
     # Calculate totals from the data
     net_worth = data.total_assets - data.total_debt
-    monthly_balance = data.monthly_income - data.monthly_expenses
+    # Use the user-provided monthly_leftover instead of calculating it
+    monthly_leftover = data.monthly_leftover
 
     # Display summary metrics
-    st.write("### Financieel Overzicht")
+    st.write("### 📊 Financieel Overzicht")
 
     # Assets, Liabilities, and Net Worth
     col1, col2, col3 = st.columns(3)
@@ -547,7 +742,7 @@ def display_summary(data: FinancialOverviewData) -> None:
     with col2:
         st.metric("Totale Schulden", f"€{data.total_debt:,.2f}")
     with col3:
-        st.metric("Netto Vermogen", f"€{net_worth:,.2f}")
+        st.metric("Eigen Vermogen", f"€{net_worth:,.2f}")
 
     st.write("---")
 
@@ -558,14 +753,54 @@ def display_summary(data: FinancialOverviewData) -> None:
     with col2:
         st.metric("Maandelijkse Uitgaven", f"€{data.monthly_expenses:,.2f}")
     with col3:
-        label = "Maandelijks Over" if monthly_balance >= 0 else "Maandelijks Tekort"
-        delta_color = "normal" if monthly_balance >= 0 else "inverse"
+        label = "Maandelijks Over" if monthly_leftover >= 0 else "Maandelijks Tekort"
+        delta_color = "normal" if monthly_leftover >= 0 else "inverse"
         st.metric(
             label,
-            f"€{abs(monthly_balance):,.2f}",
-            delta=f"{'Positief' if monthly_balance >= 0 else 'Negatief'} saldo",
+            f"€{abs(monthly_leftover):,.2f}",
+            delta=f"{'Positief' if monthly_leftover >= 0 else 'Negatief'} saldo",
             delta_color=delta_color,
         )
+
+    st.write("---")
+
+    # Visualizations Section
+    st.write("### 📈 Visualisatie")
+
+    # Create two columns for the charts
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.write("**Maandelijks overzicht**")
+        cash_flow_fig = create_cash_flow_visualization(data)
+        st.plotly_chart(cash_flow_fig, use_container_width=True)
+
+        # Text summary for cash flow
+        if data.monthly_leftover > 0:
+            st.success(
+                f"✅ Je houdt maandelijks €{data.monthly_leftover:,.2f} over voor sparen/beleggen"
+            )
+        elif data.monthly_leftover < 0:
+            st.error(
+                f"⚠️ Je hebt een maandelijks tekort van €{abs(data.monthly_leftover):,.2f}"
+            )
+        else:
+            st.warning("💡 Je inkomsten en uitgaven zijn precies gelijk")
+
+    with col2:
+        st.write("**Vermogen overzicht**")
+        net_worth_fig = create_net_worth_visualization(data)
+        st.plotly_chart(net_worth_fig, use_container_width=True)
+
+        # Text summary for net worth
+        if net_worth > 0:
+            st.success(f"💰 Je eigen vermogen is €{net_worth:,.2f}")
+        elif net_worth < 0:
+            st.error(
+                f"📉 Je hebt een negatief eigen vermogen van €{abs(net_worth):,.2f}"
+            )
+        else:
+            st.warning("💡 Je bezittingen en schulden zijn gelijk aan elkaar")
 
 
 def show_financial_overview() -> None:
@@ -591,16 +826,28 @@ def show_financial_overview() -> None:
     Results are displayed automatically when the questionnaire is completed.
     The expander starts expanded to show the questionnaire.
     """
-    with st.expander("💶 Overzicht van je Huidige Situatie", expanded=True):
+    with st.expander("💶 Overzicht van je huidige financiële situatie", expanded=True):
         st.write("### Financiële Vragenlijst")
-        st.write("Beantwoord de volgende vragen om je financiële overzicht te krijgen:")
-
-        # Create and run the questionnaire
         questionnaire = create_financial_questionnaire()
         questionnaire_data = questionnaire.run()
 
         # If questionnaire is completed, show results
         if questionnaire_data is not None:
+            # Validate consistency before showing results
+            monthly_income = questionnaire_data.get("monthly_income", 0.0)
+            monthly_expenses = questionnaire_data.get("monthly_expenses", 0.0)
+            monthly_leftover = questionnaire_data.get("monthly_leftover", 0.0)
+
+            is_consistent, warning_message = validate_financial_consistency(
+                monthly_income, monthly_expenses, monthly_leftover
+            )
+
+            if not is_consistent:
+                st.warning(warning_message)
+                st.info(
+                    "💡 We gebruiken je opgegeven bedragen, maar controleer deze nog even."
+                )
+
             st.write("---")
             st.success("Vragenlijst voltooid! Hier is je financiële overzicht:")
 
