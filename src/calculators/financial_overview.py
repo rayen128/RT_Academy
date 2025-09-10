@@ -79,11 +79,17 @@ def validate_financial_consistency(
     if monthly_leftover > calculated_leftover:
         return (
             False,
-            f"⚠️ Je zegt €{monthly_leftover:,.2f} over te houden, maar op basis van je inkomen (€{monthly_income:,.2f}) en uitgaven (€{monthly_expenses:,.2f}) zou je €{calculated_leftover:,.2f} over moeten houden. Controleer je bedragen.",
+            f"⚠️ Je zegt €{monthly_leftover:,.2f} over te houden, maar op basis "
+            f"van je inkomen (€{monthly_income:,.2f}) en uitgaven "
+            f"(€{monthly_expenses:,.2f}) zou je €{calculated_leftover:,.2f} "
+            f"over moeten houden. Controleer je bedragen.",
         )
     return (
         False,
-        f"⚠️ Op basis van je inkomen (€{monthly_income:,.2f}) en uitgaven (€{monthly_expenses:,.2f}) zou je €{calculated_leftover:,.2f} over moeten houden, maar je zegt slechts €{monthly_leftover:,.2f} over te houden. Mogelijk heb je uitgaven vergeten?",
+        f"⚠️ Op basis van je inkomen (€{monthly_income:,.2f}) en uitgaven "
+        f"(€{monthly_expenses:,.2f}) zou je €{calculated_leftover:,.2f} over "
+        f"moeten houden, maar je zegt slechts €{monthly_leftover:,.2f} over "
+        f"te houden. Mogelijk heb je uitgaven vergeten?",
     )
 
 
@@ -194,14 +200,18 @@ def create_financial_questionnaire() -> Questionnaire:
         ),
         NumberQuestion(
             key="monthly_leftover",
-            text="Hoeveel geld houd je gemiddeld maandelijks over om te kunnen sparen of beleggen?",
+            text=(
+                "Hoeveel geld houd je gemiddeld maandelijks over "
+                "om te kunnen sparen of beleggen?"
+            ),
             min_value=0.0,
             step=50.0,
             format_str="%.2f",
             help_text=(
                 "(Tip: je kunt dit nagaan door je bankafschriften te checken. "
-                "Reken alleen echt het geld dat je overhoudt. "
-                "Dus niet geld dat je apart zet voor een vakantie, een nieuwe auto of andere spaardoelen.)"
+                "Reken alleen echt het geld dat je overhoudt. Dus niet geld "
+                "dat je apart zet voor een vakantie, een nieuwe auto of "
+                "andere spaardoelen.)"
             ),
         ),
         NumberQuestion(
@@ -355,11 +365,15 @@ def get_simple_user_input() -> FinancialOverviewData:
             key="simple_monthly_income",
         )
         monthly_leftover = st.number_input(
-            "Hoeveel geld houd je gemiddeld maandelijks over om te kunnen sparen of beleggen? (€)",
+            "Hoeveel geld houd je gemiddeld maandelijks over om te kunnen "
+            "sparen of beleggen? (€)",
             min_value=0.0,
             value=500.0,
             step=50.0,
-            help="Tip: je kunt dit nagaan door je bankafschriften te checken. Reken alleen echt het geld dat je overhoudt.",
+            help=(
+                "Tip: je kunt dit nagaan door je bankafschriften te checken. "
+                "Reken alleen echt het geld dat je overhoudt."
+            ),
             key="simple_monthly_leftover",
         )
         total_assets = st.number_input(
@@ -440,9 +454,103 @@ def get_simple_user_input() -> FinancialOverviewData:
     )
 
 
-def get_advanced_user_input() -> (
-    FinancialOverviewData
-):  # pylint: disable=too-many-locals
+def _collect_income_streams() -> list[MonthlyFlow]:
+    """Collect income stream data from user input."""
+    income_streams = []
+    st.write("### Maandelijkse Inkomsten")
+    num_income = st.number_input(
+        "Aantal inkomstenbronnen", min_value=0, value=1, step=1
+    )
+    for i in range(int(num_income)):
+        col1, col2 = st.columns(2)
+        with col1:
+            income_name = st.text_input(
+                f"Naam inkomstenbron {i + 1}", value=f"Inkomst {i + 1}"
+            )
+        with col2:
+            income_amount = st.number_input(
+                f"Bedrag inkomst {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
+            )
+        income_streams.append(MonthlyFlow(name=income_name, amount=income_amount))
+    return income_streams
+
+
+def _collect_expense_streams() -> list[MonthlyFlow]:
+    """Collect expense stream data from user input."""
+    expense_streams = []
+    st.write("### Maandelijkse Uitgaven")
+    num_expenses = st.number_input("Aantal uitgaven", min_value=0, value=1, step=1)
+    for i in range(int(num_expenses)):
+        col1, col2 = st.columns(2)
+        with col1:
+            expense_name = st.text_input(
+                f"Naam uitgave {i + 1}", value=f"Uitgave {i + 1}"
+            )
+        with col2:
+            expense_amount = st.number_input(
+                f"Bedrag uitgave {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
+            )
+        expense_streams.append(MonthlyFlow(name=expense_name, amount=expense_amount))
+    return expense_streams
+
+
+def _collect_assets() -> list[Asset]:
+    """Collect asset data from user input."""
+    assets = []
+    st.write("### Bezittingen")
+    num_assets = st.number_input("Aantal bezittingen", min_value=0, value=1, step=1)
+    for i in range(int(num_assets)):
+        col1, col2 = st.columns(2)
+        with col1:
+            asset_name = st.text_input(
+                f"Naam bezitting {i + 1}", value=f"Bezitting {i + 1}"
+            )
+        with col2:
+            asset_value = st.number_input(
+                f"Waarde bezitting {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
+            )
+        assets.append(Asset(name=asset_name, value=asset_value))
+    return assets
+
+
+def _collect_liabilities() -> list[Liability]:
+    """Collect liability data from user input."""
+    liabilities = []
+    st.write("### Schulden")
+    num_liabilities = st.number_input("Aantal schulden", min_value=0, value=1, step=1)
+    for i in range(int(num_liabilities)):
+        col1, col2 = st.columns(2)
+        with col1:
+            liability_name = st.text_input(
+                f"Naam schuld {i + 1}", value=f"Schuld {i + 1}"
+            )
+        with col2:
+            liability_amount = st.number_input(
+                f"Bedrag schuld {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
+            )
+        liabilities.append(Liability(name=liability_name, amount=liability_amount))
+    return liabilities
+
+
+def _display_financial_summary(
+    monthly_income: float, monthly_expenses: float, monthly_leftover: float
+) -> None:
+    """Display financial summary with metrics."""
+    if monthly_income > 0 and monthly_expenses > 0:
+        st.write("### 📊 Berekend Overzicht")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Totale Inkomsten", f"€{monthly_income:,.2f}")
+        with col2:
+            st.metric("Totale Uitgaven", f"€{monthly_expenses:,.2f}")
+        with col3:
+            leftover_label = (
+                "Maandelijks Over" if monthly_leftover >= 0 else "Maandelijks Tekort"
+            )
+            st.metric(leftover_label, f"€{abs(monthly_leftover):,.2f}")
+
+
+def get_advanced_user_input() -> FinancialOverviewData:
     """Collect detailed financial data through advanced multi-category form.
 
     Displays an advanced form allowing users to input multiple income sources,
@@ -470,93 +578,21 @@ def get_advanced_user_input() -> (
     The monthly_leftover is computed as income minus expenses.
     All individual items use dynamic numbering based on user-specified quantities.
     """
-    assets = []
-    liabilities = []
-    income_streams = []
-    expense_streams = []
+    # Collect data from different sections
+    income_streams = _collect_income_streams()
+    expense_streams = _collect_expense_streams()
+    assets = _collect_assets()
+    liabilities = _collect_liabilities()
 
-    # Monthly Income
-    st.write("### Maandelijkse Inkomsten")
-    num_income = st.number_input(
-        "Aantal inkomstenbronnen", min_value=0, value=1, step=1
-    )
-    for i in range(int(num_income)):
-        col1, col2 = st.columns(2)
-        with col1:
-            income_name = st.text_input(
-                f"Naam inkomstenbron {i + 1}", value=f"Inkomst {i + 1}"
-            )
-        with col2:
-            income_amount = st.number_input(
-                f"Bedrag inkomst {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
-            )
-        income_streams.append(MonthlyFlow(name=income_name, amount=income_amount))
-
-    # Monthly Expenses
-    st.write("### Maandelijkse Uitgaven")
-    num_expenses = st.number_input("Aantal uitgaven", min_value=0, value=1, step=1)
-    for i in range(int(num_expenses)):
-        col1, col2 = st.columns(2)
-        with col1:
-            expense_name = st.text_input(
-                f"Naam uitgave {i + 1}", value=f"Uitgave {i + 1}"
-            )
-        with col2:
-            expense_amount = st.number_input(
-                f"Bedrag uitgave {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
-            )
-        expense_streams.append(MonthlyFlow(name=expense_name, amount=expense_amount))
-
-    # Assets section
-    st.write("### Bezittingen")
-    num_assets = st.number_input("Aantal bezittingen", min_value=0, value=1, step=1)
-    for i in range(int(num_assets)):
-        col1, col2 = st.columns(2)
-        with col1:
-            asset_name = st.text_input(
-                f"Naam bezitting {i + 1}", value=f"Bezitting {i + 1}"
-            )
-        with col2:
-            asset_value = st.number_input(
-                f"Waarde bezitting {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
-            )
-        assets.append(Asset(name=asset_name, value=asset_value))
-
-    # Liabilities section
-    st.write("### Schulden")
-    num_liabilities = st.number_input("Aantal schulden", min_value=0, value=1, step=1)
-    for i in range(int(num_liabilities)):
-        col1, col2 = st.columns(2)
-        with col1:
-            liability_name = st.text_input(
-                f"Naam schuld {i + 1}", value=f"Schuld {i + 1}"
-            )
-        with col2:
-            liability_amount = st.number_input(
-                f"Bedrag schuld {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
-            )
-        liabilities.append(Liability(name=liability_name, amount=liability_amount))
-
-    # Calculate totals for consistency
+    # Calculate totals
     total_assets = sum(asset.value for asset in assets)
     total_debt = sum(liability.amount for liability in liabilities)
     monthly_income = sum(income.amount for income in income_streams)
     monthly_expenses = sum(expense.amount for expense in expense_streams)
     monthly_leftover = monthly_income - monthly_expenses
 
-    # Show validation info in advanced mode
-    if monthly_income > 0 and monthly_expenses > 0:
-        st.write("### 📊 Berekend Overzicht")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Totale Inkomsten", f"€{monthly_income:,.2f}")
-        with col2:
-            st.metric("Totale Uitgaven", f"€{monthly_expenses:,.2f}")
-        with col3:
-            leftover_label = (
-                "Maandelijks Over" if monthly_leftover >= 0 else "Maandelijks Tekort"
-            )
-            st.metric(leftover_label, f"€{abs(monthly_leftover):,.2f}")
+    # Display summary
+    _display_financial_summary(monthly_income, monthly_expenses, monthly_leftover)
 
     return FinancialOverviewData(
         monthly_income=monthly_income,
@@ -778,11 +814,13 @@ def display_summary(data: FinancialOverviewData) -> None:
         # Text summary for cash flow
         if data.monthly_leftover > 0:
             st.success(
-                f"✅ Je houdt maandelijks €{data.monthly_leftover:,.2f} over voor sparen/beleggen"
+                f"✅ Je houdt maandelijks €{data.monthly_leftover:,.2f} over "
+                f"voor sparen/beleggen"
             )
         elif data.monthly_leftover < 0:
             st.error(
-                f"⚠️ Je hebt een maandelijks tekort van €{abs(data.monthly_leftover):,.2f}"
+                f"⚠️ Je hebt een maandelijks tekort van "
+                f"€{abs(data.monthly_leftover):,.2f}"
             )
         else:
             st.warning("💡 Je inkomsten en uitgaven zijn precies gelijk")
@@ -845,7 +883,8 @@ def show_financial_overview() -> None:
             if not is_consistent:
                 st.warning(warning_message)
                 st.info(
-                    "💡 We gebruiken je opgegeven bedragen, maar controleer deze nog even."
+                    "💡 We gebruiken je opgegeven bedragen, maar controleer "
+                    "deze nog even."
                 )
 
             st.write("---")
