@@ -2,9 +2,9 @@
 
 import streamlit as st
 
-from src.calculators.financial_overview import show_financial_overview
+from src.code.calculators.financial_overview import show_financiele_apk
 
-st.title("Overzicht van je huidige financiële situatie")
+st.title("Financiele APK")
 
 st.write(
     """
@@ -14,7 +14,7 @@ st.write(
     """
 )
 
-show_financial_overview()
+show_financiele_apk()
 
 # Temporarily hidden - original goal selection
 # goal = st.radio(

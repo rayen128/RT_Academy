@@ -58,6 +58,25 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 
 import streamlit as st
 
+# Import standardized UI components
+try:
+    from src.code.UI_components.Basic.input import (
+        display_calculation_button,
+        display_currency_input,
+        display_percentage_input,
+    )
+    from src.code.UI_components.Basic.status import (
+        display_progress_indicator,
+        display_status_message,
+    )
+except ImportError:
+    # Fallback for when UI components are not available
+    display_currency_input = None
+    display_percentage_input = None
+    display_calculation_button = None
+    display_progress_indicator = None
+    display_status_message = None
+
 
 @dataclass
 class QuestionnaireUIText:
@@ -199,21 +218,61 @@ class NumberQuestion(Question):
         self.format_str = format_str
 
     def render(self, current_value: Any = None) -> Union[int, float]:
-        """Render number input widget."""
+        """Render number input widget using standardized UI components when possible."""
         value: Union[int, float] = (
             current_value if current_value is not None else self.get_default_value()
         )
 
-        result = st.number_input(
-            self.text,
-            min_value=self.min_value,
-            max_value=self.max_value,
-            value=value,
-            step=self.step,
-            format=self.format_str,
-            help=self.help_text,
-            key=f"input_{self.key}",
+        # Check if this is a currency or percentage input
+        is_currency = (
+            "€" in self.text.lower()
+            or "euro" in self.text.lower()
+            or "bedrag" in self.text.lower()
         )
+        is_percentage = (
+            "%" in self.text.lower()
+            or "percentage" in self.text.lower()
+            or "procent" in self.text.lower()
+        )
+
+        # Use standardized UI components when available and appropriate
+        if is_currency and display_currency_input is not None:
+            # Remove currency symbols from label for standardized component
+            clean_label = self.text.replace("(€)", "").replace("€", "").strip()
+            result = display_currency_input(
+                clean_label,
+                min_value=self.min_value,
+                value=float(value),
+                step=self.step,
+                help_text=self.help_text,
+                key=f"input_{self.key}",
+            )
+        elif is_percentage and display_percentage_input is not None:
+            # Remove percentage symbols from label for standardized component
+            clean_label = self.text.replace("(%)", "").replace("%", "").strip()
+            max_val = self.max_value if self.max_value is not None else 100.0
+            result = display_percentage_input(
+                clean_label,
+                min_value=self.min_value,
+                max_value=max_val,
+                value=float(value),
+                step=self.step,
+                help_text=self.help_text,
+                key=f"input_{self.key}",
+            )
+        else:
+            # Fallback to standard Streamlit number input
+            result = st.number_input(
+                self.text,
+                min_value=self.min_value,
+                max_value=self.max_value,
+                value=value,
+                step=self.step,
+                format=self.format_str,
+                help=self.help_text,
+                key=f"input_{self.key}",
+            )
+
         return float(result)  # Ensure we return a proper numeric type
 
     def get_default_value(self) -> Union[int, float]:
@@ -674,19 +733,31 @@ class Questionnaire:
         st.session_state[self.data_key] = data
 
     def _show_progress(self, current_step: int) -> None:
-        """Display progress indicator."""
+        """Display progress indicator using standardized UI components."""
         if not self.config.show_progress:
             return
 
         total_steps = len(self.questions)
         progress = (current_step + 1) / total_steps
 
-        st.write(
-            self.config.ui_text.question_counter.format(
-                current=current_step + 1, total=total_steps
+        # Use standardized progress indicator if available
+        if display_progress_indicator is not None:
+            title = f"Vraag {current_step + 1} van {total_steps}"
+            subtitle = f"Voortgang: {current_step + 1}/{total_steps} vragen voltooid"
+            display_progress_indicator(
+                progress_value=progress,
+                title=title,
+                subtitle=subtitle,
+                show_percentage=True,
             )
-        )
-        st.progress(progress)
+        else:
+            # Fallback to original implementation
+            st.write(
+                self.config.ui_text.question_counter.format(
+                    current=current_step + 1, total=total_steps
+                )
+            )
+            st.progress(progress)
 
     def _show_previous_answers(self, current_step: int) -> None:
         """Display previously entered answers."""
@@ -734,9 +805,19 @@ class Questionnaire:
         # Previous button (except for first question)
         if current_step > 0:
             with col1:
-                if st.button(
-                    self.config.ui_text.previous_button, key=f"prev_{current_step}"
-                ):
+                # Use standardized button if available
+                if display_calculation_button is not None:
+                    clicked = display_calculation_button(
+                        label=self.config.ui_text.previous_button,
+                        key=f"prev_{current_step}",
+                        button_type="secondary",
+                    )
+                else:
+                    clicked = st.button(
+                        self.config.ui_text.previous_button, key=f"prev_{current_step}"
+                    )
+
+                if clicked:
                     self._store_answer(question.key, current_value)
                     self._set_current_step(current_step - 1)
                     st.rerun()
@@ -746,11 +827,21 @@ class Questionnaire:
             if current_step < total_steps - 1:
                 button_text = self.config.ui_text.next_button
                 button_key = f"next_{current_step}"
+                button_type = "primary"
             else:
                 button_text = self.config.ui_text.complete_button
                 button_key = f"complete_{current_step}"
+                button_type = "primary"
 
-            if st.button(button_text, key=button_key):
+            # Use standardized button if available
+            if display_calculation_button is not None:
+                clicked = display_calculation_button(
+                    label=button_text, key=button_key, button_type=button_type
+                )
+            else:
+                clicked = st.button(button_text, key=button_key)
+
+            if clicked:
                 self._store_answer(question.key, current_value)
 
                 if current_step < total_steps - 1:
@@ -786,6 +877,15 @@ class Questionnaire:
             return self._get_stored_data()
         return None
 
+    def _show_completion_message(self) -> None:
+        """Display completion message using standardized UI components."""
+        message = f"🎉 Vragenlijst '{self.name}' succesvol voltooid!"
+
+        if display_status_message is not None:
+            display_status_message(message, "success")
+        else:
+            st.success(message)
+
     def run(self) -> Optional[Dict[str, Any]]:
         """Run the questionnaire and return data when complete.
 
@@ -800,6 +900,7 @@ class Questionnaire:
 
         # Check if questionnaire is complete
         if current_step >= len(self.questions):
+            self._show_completion_message()
             return self.get_data()
 
         # Show current question

@@ -1,6 +1,6 @@
-"""Financial Overview Calculator - Comprehensive financial analysis tool.
+"""Financiele APK Calculator - Comprehensive financial analysis tool.
 
-This module provides financial overview calculations by offering both simple
+This module provides Financiele APK calculations by offering both simple
 and advanced modes for analyzing assets, liabilities, and cash flow.
 
 Features
@@ -19,10 +19,10 @@ Dependencies
 
 Example
 -------
->>> from src.calculators.financial_overview import show_financial_overview
+>>> from src.calculators.financial_overview import show_financiele_apk
 >>> # In a Streamlit app:
->>> show_financial_overview()
-# Displays interactive financial overview calculator
+>>> show_financiele_apk()
+# Displays interactive Financiele APK calculator
 
 Note
 ----
@@ -31,14 +31,18 @@ are assumed to be in Euros (€). The simple mode includes validation
 to ensure input consistency.
 """
 
+from src.code.UI_components.Applied.questionnaire import (
+    NumberQuestion,
+    Questionnaire,
+    QuestionnaireConfig,
+)
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.utils.models import Asset, Liability, MonthlyFlow
-from src.utils.questionnaire import NumberQuestion, Questionnaire, QuestionnaireConfig
+from src.database.models import Asset, Liability, MonthlyFlow
 
 
 def validate_financial_consistency(
@@ -94,11 +98,11 @@ def validate_financial_consistency(
 
 
 @dataclass
-class FinancialOverviewData:  # pylint: disable=too-many-instance-attributes
-    """Data structure for comprehensive financial overview information.
+class FinancieleAPKData:  # pylint: disable=too-many-instance-attributes
+    """Data structure for comprehensive Financiele APK information.
 
     Represents all financial data collected from either simple or advanced
-    input modes, providing a unified structure for calculations and display.
+    input modes, providing a unified structure for Financiele APK calculations and display.
 
     Attributes
     ----------
@@ -123,7 +127,7 @@ class FinancialOverviewData:  # pylint: disable=too-many-instance-attributes
 
     Example
     -------
-    >>> data = FinancialOverviewData(
+    >>> data = FinancieleAPKData(
     ...     monthly_income=3000.0,
     ...     monthly_expenses=2500.0,
     ...     monthly_leftover=500.0,
@@ -154,8 +158,8 @@ class FinancialOverviewData:  # pylint: disable=too-many-instance-attributes
     expense_streams: List[MonthlyFlow]
 
 
-def create_financial_questionnaire() -> Questionnaire:
-    """Create a questionnaire for collecting financial overview data.
+def create_financiele_apk_questionnaire() -> Questionnaire:
+    """Create a questionnaire for collecting Financiele APK data.
 
     Creates a step-by-step questionnaire to collect the user's financial
     information including income, expenses, leftover money, assets, and debts.
@@ -167,7 +171,7 @@ def create_financial_questionnaire() -> Questionnaire:
 
     Example
     -------
-    >>> questionnaire = create_financial_questionnaire()
+    >>> questionnaire = create_financiele_apk_questionnaire()
     >>> # In Streamlit context:
     >>> data = questionnaire.run()
     >>> if data:
@@ -175,7 +179,7 @@ def create_financial_questionnaire() -> Questionnaire:
 
     Note
     ----
-    The questionnaire collects data for simple financial overview calculation.
+    The questionnaire collects data for simple Financiele APK calculation.
     All monetary values are in Euros (€).
     """
     questions = [
@@ -236,22 +240,68 @@ def create_financial_questionnaire() -> Questionnaire:
     ]
 
     config = QuestionnaireConfig(
-        session_prefix="financial_overview",
+        session_prefix="financiele_apk",
         show_progress=True,
         show_previous_answers=True,
         navigation_style="columns",
     )
 
-    return Questionnaire("financial_data", questions, config)
+    return Questionnaire("financiele_apk_data", questions, config)
 
 
-def questionnaire_data_to_financial_overview(
+def _create_simple_financial_lists(
+    monthly_income: float,
+    monthly_expenses: float,
+    total_assets: float,
+    total_debt: float,
+) -> Tuple[List[Asset], List[Liability], List[MonthlyFlow], List[MonthlyFlow]]:
+    """Create simple financial data lists for consistency with advanced mode.
+
+    Parameters
+    ----------
+    monthly_income : float
+        Total monthly income in euros
+    monthly_expenses : float
+        Total monthly expenses in euros
+    total_assets : float
+        Total value of assets in euros
+    total_debt : float
+        Total amount of debt in euros
+
+    Returns
+    -------
+    Tuple[List[Asset], List[Liability], List[MonthlyFlow], List[MonthlyFlow]]
+        Tuple containing assets, liabilities, income_streams, expense_streams lists
+    """
+    assets = (
+        [Asset(name="Totale bezittingen", value=total_assets)]
+        if total_assets > 0
+        else []
+    )
+    liabilities = (
+        [Liability(name="Totale schulden", amount=total_debt)] if total_debt > 0 else []
+    )
+    income_streams = (
+        [MonthlyFlow(name="Maandelijks inkomen", amount=monthly_income)]
+        if monthly_income > 0
+        else []
+    )
+    expense_streams = (
+        [MonthlyFlow(name="Maandelijkse uitgaven", amount=monthly_expenses)]
+        if monthly_expenses > 0
+        else []
+    )
+
+    return assets, liabilities, income_streams, expense_streams
+
+
+def questionnaire_data_to_financiele_apk(
     data: Dict[str, float],
-) -> FinancialOverviewData:
-    """Convert questionnaire data to FinancialOverviewData structure.
+) -> FinancieleAPKData:
+    """Convert questionnaire data to FinancieleAPKData structure.
 
     Transforms the flat dictionary returned by the questionnaire into
-    a structured FinancialOverviewData object with user-provided values.
+    a structured FinancieleAPKData object with user-provided values.
 
     Parameters
     ----------
@@ -262,7 +312,7 @@ def questionnaire_data_to_financial_overview(
 
     Returns
     -------
-    FinancialOverviewData
+    FinancieleAPKData
         Complete financial data structure with user-provided monthly leftover
         and single-item lists for consistency
 
@@ -275,7 +325,7 @@ def questionnaire_data_to_financial_overview(
     ...     'total_assets': 10000.0,
     ...     'total_debt': 5000.0
     ... }
-    >>> overview = questionnaire_data_to_financial_overview(data)
+    >>> overview = questionnaire_data_to_financiele_apk(data)
     >>> overview.monthly_leftover
     400.0
 
@@ -292,26 +342,13 @@ def questionnaire_data_to_financial_overview(
     total_debt = data.get("total_debt", 0.0)
 
     # Create simple data structures for consistency
-    assets = (
-        [Asset(name="Totale bezittingen", value=total_assets)]
-        if total_assets > 0
-        else []
-    )
-    liabilities = (
-        [Liability(name="Totale schulden", amount=total_debt)] if total_debt > 0 else []
-    )
-    income_streams = (
-        [MonthlyFlow(name="Maandelijks inkomen", amount=monthly_income)]
-        if monthly_income > 0
-        else []
-    )
-    expense_streams = (
-        [MonthlyFlow(name="Maandelijkse uitgaven", amount=monthly_expenses)]
-        if monthly_expenses > 0
-        else []
+    assets, liabilities, income_streams, expense_streams = (
+        _create_simple_financial_lists(
+            monthly_income, monthly_expenses, total_assets, total_debt
+        )
     )
 
-    return FinancialOverviewData(
+    return FinancieleAPKData(
         monthly_income=monthly_income,
         monthly_expenses=monthly_expenses,
         monthly_leftover=monthly_leftover,
@@ -324,335 +361,12 @@ def questionnaire_data_to_financial_overview(
     )
 
 
-def get_simple_user_input() -> FinancialOverviewData:
-    """Collect basic financial data through simplified input form.
-
-    Displays a simple form with 4 essential financial input fields arranged
-    in a two-column layout for quick financial overview entry. Monthly leftover
-    is automatically calculated from income min expenses.
-
-    Returns
-    -------
-    FinancialOverviewData
-        Complete financial data structure with simple aggregated values and
-        single-item lists for consistency
-
-    Example
-    -------
-    >>> # In Streamlit context:
-    >>> data = get_simple_user_input()
-    >>> data.monthly_income >= 0
-    True
-    >>> len(data.assets) <= 1  # Single aggregated asset entry
-    True
-
-    Note
-    ----
-        Creates single-item lists for assets, liabilities, income_streams,
-        and expense_streams to maintain consistency with advanced mode data structure.
-        All monetary inputs are validated to be non-negative.
-        Monthly leftover is calculated as income minus expenses.
-    """
-    st.write("### Basis Financiële Gegevens")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        monthly_income = st.number_input(
-            "Wat is je maandelijks netto totaal inkomen gemiddeld genomen? (€)",
-            min_value=0.0,
-            value=3000.0,
-            step=100.0,
-            key="simple_monthly_income",
-        )
-        monthly_leftover = st.number_input(
-            "Hoeveel geld houd je gemiddeld maandelijks over om te kunnen "
-            "sparen of beleggen? (€)",
-            min_value=0.0,
-            value=500.0,
-            step=50.0,
-            help=(
-                "Tip: je kunt dit nagaan door je bankafschriften te checken. "
-                "Reken alleen echt het geld dat je overhoudt."
-            ),
-            key="simple_monthly_leftover",
-        )
-        total_assets = st.number_input(
-            "Hoeveel spaargeld, beleggingen of andere bezittingen bezit je nu? (€)",
-            min_value=0.0,
-            value=10000.0,
-            step=1000.0,
-            key="simple_total_assets",
-        )
-
-    with col2:
-        monthly_expenses = st.number_input(
-            "Wat zijn je totale maandelijkse uitgaven? (€)",
-            min_value=0.0,
-            value=2500.0,
-            step=100.0,
-            key="simple_monthly_expenses",
-        )
-        total_debt = st.number_input(
-            "Wat is je totaal aantal schulden? (€)",
-            min_value=0.0,
-            value=0.0,
-            step=1000.0,
-            help="Als je geen schulden hebt, vul hier 0 in.",
-            key="simple_total_debt",
-        )
-
-    # Validation
-    is_consistent, warning_message = validate_financial_consistency(
-        monthly_income, monthly_expenses, monthly_leftover
-    )
-
-    if not is_consistent:
-        st.warning(warning_message)
-
-        # Option to auto-correct
-        calculated_leftover = monthly_income - monthly_expenses
-        if st.button(
-            f"Gebruik berekende waarde: €{calculated_leftover:,.2f}",
-            key="auto_correct_simple",
-        ):
-            st.session_state["simple_monthly_leftover"] = calculated_leftover
-            st.rerun()
-
-    # Use user-provided monthly leftover instead of calculating it
-    # monthly_leftover = monthly_income - monthly_expenses  # Old calculation
-
-    # Create simple data structures for consistency with advanced mode
-    assets = (
-        [Asset(name="Totale bezittingen", value=total_assets)]
-        if total_assets > 0
-        else []
-    )
-    liabilities = (
-        [Liability(name="Totale schulden", amount=total_debt)] if total_debt > 0 else []
-    )
-    income_streams = (
-        [MonthlyFlow(name="Maandelijks inkomen", amount=monthly_income)]
-        if monthly_income > 0
-        else []
-    )
-    expense_streams = (
-        [MonthlyFlow(name="Maandelijkse uitgaven", amount=monthly_expenses)]
-        if monthly_expenses > 0
-        else []
-    )
-
-    return FinancialOverviewData(
-        monthly_income=monthly_income,
-        monthly_expenses=monthly_expenses,
-        monthly_leftover=monthly_leftover,
-        total_assets=total_assets,
-        total_debt=total_debt,
-        assets=assets,
-        liabilities=liabilities,
-        income_streams=income_streams,
-        expense_streams=expense_streams,
-    )
-
-
-def _collect_income_streams() -> list[MonthlyFlow]:
-    """Collect income stream data from user input."""
-    income_streams = []
-    st.write("### Maandelijkse Inkomsten")
-    num_income = st.number_input(
-        "Aantal inkomstenbronnen", min_value=0, value=1, step=1
-    )
-    for i in range(int(num_income)):
-        col1, col2 = st.columns(2)
-        with col1:
-            income_name = st.text_input(
-                f"Naam inkomstenbron {i + 1}", value=f"Inkomst {i + 1}"
-            )
-        with col2:
-            income_amount = st.number_input(
-                f"Bedrag inkomst {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
-            )
-        income_streams.append(MonthlyFlow(name=income_name, amount=income_amount))
-    return income_streams
-
-
-def _collect_expense_streams() -> list[MonthlyFlow]:
-    """Collect expense stream data from user input."""
-    expense_streams = []
-    st.write("### Maandelijkse Uitgaven")
-    num_expenses = st.number_input("Aantal uitgaven", min_value=0, value=1, step=1)
-    for i in range(int(num_expenses)):
-        col1, col2 = st.columns(2)
-        with col1:
-            expense_name = st.text_input(
-                f"Naam uitgave {i + 1}", value=f"Uitgave {i + 1}"
-            )
-        with col2:
-            expense_amount = st.number_input(
-                f"Bedrag uitgave {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
-            )
-        expense_streams.append(MonthlyFlow(name=expense_name, amount=expense_amount))
-    return expense_streams
-
-
-def _collect_assets() -> list[Asset]:
-    """Collect asset data from user input."""
-    assets = []
-    st.write("### Bezittingen")
-    num_assets = st.number_input("Aantal bezittingen", min_value=0, value=1, step=1)
-    for i in range(int(num_assets)):
-        col1, col2 = st.columns(2)
-        with col1:
-            asset_name = st.text_input(
-                f"Naam bezitting {i + 1}", value=f"Bezitting {i + 1}"
-            )
-        with col2:
-            asset_value = st.number_input(
-                f"Waarde bezitting {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
-            )
-        assets.append(Asset(name=asset_name, value=asset_value))
-    return assets
-
-
-def _collect_liabilities() -> list[Liability]:
-    """Collect liability data from user input."""
-    liabilities = []
-    st.write("### Schulden")
-    num_liabilities = st.number_input("Aantal schulden", min_value=0, value=1, step=1)
-    for i in range(int(num_liabilities)):
-        col1, col2 = st.columns(2)
-        with col1:
-            liability_name = st.text_input(
-                f"Naam schuld {i + 1}", value=f"Schuld {i + 1}"
-            )
-        with col2:
-            liability_amount = st.number_input(
-                f"Bedrag schuld {i + 1} (€)", min_value=0.0, value=0.0, step=100.0
-            )
-        liabilities.append(Liability(name=liability_name, amount=liability_amount))
-    return liabilities
-
-
-def _display_financial_summary(
-    monthly_income: float, monthly_expenses: float, monthly_leftover: float
-) -> None:
-    """Display financial summary with metrics."""
-    if monthly_income > 0 and monthly_expenses > 0:
-        st.write("### 📊 Berekend Overzicht")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Totale Inkomsten", f"€{monthly_income:,.2f}")
-        with col2:
-            st.metric("Totale Uitgaven", f"€{monthly_expenses:,.2f}")
-        with col3:
-            leftover_label = (
-                "Maandelijks Over" if monthly_leftover >= 0 else "Maandelijks Tekort"
-            )
-            st.metric(leftover_label, f"€{abs(monthly_leftover):,.2f}")
-
-
-def get_advanced_user_input() -> FinancialOverviewData:
-    """Collect detailed financial data through advanced multi-category form.
-
-    Displays an advanced form allowing users to input multiple income sources,
-    expense categories, assets, and liabilities with individual names and amounts.
-    Categories are presented in logical order: income, expenses, assets, debts.
-
-    Returns
-    -------
-    FinancialOverviewData
-        Complete financial data structure with detailed breakdowns and
-        calculated totals
-
-    Example
-    -------
-    >>> # In Streamlit context:
-    >>> data = get_advanced_user_input()
-    >>> data.total_assets == sum(asset.value for asset in data.assets)
-    True
-    >>> data.monthly_leftover == data.monthly_income - data.monthly_expenses
-    True
-
-    Note
-    ----
-    Totals are automatically calculated from individual entries.
-    The monthly_leftover is computed as income minus expenses.
-    All individual items use dynamic numbering based on user-specified quantities.
-    """
-    # Collect data from different sections
-    income_streams = _collect_income_streams()
-    expense_streams = _collect_expense_streams()
-    assets = _collect_assets()
-    liabilities = _collect_liabilities()
-
-    # Calculate totals
-    total_assets = sum(asset.value for asset in assets)
-    total_debt = sum(liability.amount for liability in liabilities)
-    monthly_income = sum(income.amount for income in income_streams)
-    monthly_expenses = sum(expense.amount for expense in expense_streams)
-    monthly_leftover = monthly_income - monthly_expenses
-
-    # Display summary
-    _display_financial_summary(monthly_income, monthly_expenses, monthly_leftover)
-
-    return FinancialOverviewData(
-        monthly_income=monthly_income,
-        monthly_expenses=monthly_expenses,
-        monthly_leftover=monthly_leftover,
-        total_assets=total_assets,
-        total_debt=total_debt,
-        assets=assets,
-        liabilities=liabilities,
-        income_streams=income_streams,
-        expense_streams=expense_streams,
-    )
-
-
-def get_user_input() -> Tuple[FinancialOverviewData, bool]:
-    """Coordinate user input collection with mode selection and calculation trigger.
-
-    Provides a toggle for simple vs advanced mode and handles the overall
-    input collection process with a calculation button.
-
-    Returns
-    -------
-    Tuple[FinancialOverviewData, bool]
-        A tuple containing complete financial data from selected input mode
-        and boolean indicating if calculate button was pressed
-
-    Example
-    -------
-    >>> # In Streamlit context:
-    >>> data, should_calculate = get_user_input()
-    >>> isinstance(data, FinancialOverviewData)
-    True
-    >>> isinstance(should_calculate, bool)
-    True
-
-    Note
-    ----
-    The advanced mode toggle determines which input collection function
-    is called. The calculate button state is returned to control when
-    results should be displayed.
-    """
-    # Advanced mode toggle
-    advanced_mode = st.checkbox("Geavanceerde instellingen")
-
-    if advanced_mode:
-        data = get_advanced_user_input()
-    else:
-        data = get_simple_user_input()
-
-    calculate_button = st.button("Bereken Overzicht")
-
-    return data, calculate_button
-
-
-def create_cash_flow_visualization(data: FinancialOverviewData) -> go.Figure:
+def create_cash_flow_visualization(data: FinancieleAPKData) -> go.Figure:
     """Create a bar chart visualization for monthly cash flow.
 
     Parameters
     ----------
-    data : FinancialOverviewData
+    data : FinancieleAPKData
         Complete financial data structure
 
     Returns
@@ -686,12 +400,12 @@ def create_cash_flow_visualization(data: FinancialOverviewData) -> go.Figure:
     return fig
 
 
-def create_net_worth_visualization(data: FinancialOverviewData) -> go.Figure:
+def create_net_worth_visualization(data: FinancieleAPKData) -> go.Figure:
     """Create a bar chart visualization for net worth calculation.
 
     Parameters
     ----------
-    data : FinancialOverviewData
+    data : FinancieleAPKData
         Complete financial data structure
 
     Returns
@@ -728,8 +442,8 @@ def create_net_worth_visualization(data: FinancialOverviewData) -> go.Figure:
     return fig
 
 
-def display_summary(data: FinancialOverviewData) -> None:
-    """Display comprehensive financial summary with metrics and visualizations.
+def display_summary(data: FinancieleAPKData) -> None:
+    """Display comprehensive Financiele APK summary with metrics and visualizations.
 
     Calculates and displays key financial metrics including net worth and
     monthly leftover from the provided financial data, along with interactive
@@ -737,7 +451,7 @@ def display_summary(data: FinancialOverviewData) -> None:
 
     Parameters
     ----------
-    data : FinancialOverviewData
+    data : FinancieleAPKData
         Complete financial data structure containing all user inputs and
         calculated values
 
@@ -749,13 +463,13 @@ def display_summary(data: FinancialOverviewData) -> None:
     Example
     -------
     >>> # In Streamlit context:
-    >>> data = FinancialOverviewData(
+    >>> data = FinancieleAPKData(
     ...     monthly_income=3000.0, monthly_expenses=2500.0,
     ...     monthly_leftover=500.0, total_assets=10000.0, total_debt=5000.0,
     ...     assets=[], liabilities=[], income_streams=[], expense_streams=[]
     ... )
     >>> display_summary(data)
-    # Displays metrics and charts for financial overview
+    # Displays metrics and charts for Financiele APK
 
     Note
     ----
@@ -769,7 +483,7 @@ def display_summary(data: FinancialOverviewData) -> None:
     monthly_leftover = data.monthly_leftover
 
     # Display summary metrics
-    st.write("### 📊 Financieel Overzicht")
+    st.write("### 📊 Financiele APK")
 
     # Assets, Liabilities, and Net Worth
     col1, col2, col3 = st.columns(3)
@@ -841,10 +555,10 @@ def display_summary(data: FinancialOverviewData) -> None:
             st.warning("💡 Je bezittingen en schulden zijn gelijk aan elkaar")
 
 
-def show_financial_overview() -> None:
-    """Display the complete financial overview calculator interface.
+def show_financiele_apk() -> None:
+    """Display the complete Financiele APK calculator interface.
 
-    Main entry point for the financial overview calculator. Uses a step-by-step
+    Main entry point for the Financiele APK calculator. Uses a step-by-step
     questionnaire to collect financial data, then displays comprehensive results.
 
     Returns
@@ -855,8 +569,8 @@ def show_financial_overview() -> None:
     Example
     -------
     >>> # In Streamlit app:
-    >>> show_financial_overview()
-    # Creates expandable "💶 Overzicht van je Huidige Situatie" section
+    >>> show_financiele_apk()
+    # Creates expandable "💶 Financiele APK" section
 
     Note
     ----
@@ -864,9 +578,9 @@ def show_financial_overview() -> None:
     Results are displayed automatically when the questionnaire is completed.
     The expander starts expanded to show the questionnaire.
     """
-    with st.expander("💶 Overzicht van je huidige financiële situatie", expanded=True):
-        st.write("### Financiële Vragenlijst")
-        questionnaire = create_financial_questionnaire()
+    with st.expander("💶 Financiele APK", expanded=True):
+        st.write("### Financiele APK Vragenlijst")
+        questionnaire = create_financiele_apk_questionnaire()
         questionnaire_data = questionnaire.run()
 
         # If questionnaire is completed, show results
@@ -888,12 +602,10 @@ def show_financial_overview() -> None:
                 )
 
             st.write("---")
-            st.success("Vragenlijst voltooid! Hier is je financiële overzicht:")
+            st.success("Vragenlijst voltooid! Hier is je Financiele APK:")
 
-            # Convert questionnaire data to financial overview data
-            financial_data = questionnaire_data_to_financial_overview(
-                questionnaire_data
-            )
+            # Convert questionnaire data to Financiele APK data
+            financial_data = questionnaire_data_to_financiele_apk(questionnaire_data)
 
             # Display the summary
             display_summary(financial_data)
@@ -903,26 +615,3 @@ def show_financial_overview() -> None:
             if st.button("Opnieuw beginnen", key="reset_questionnaire"):
                 questionnaire.reset()
                 st.rerun()
-
-
-def show_financial_overview_legacy() -> None:
-    """Display the legacy financial overview calculator interface.
-
-    Legacy version that uses the original form-based input method.
-    Kept for backward compatibility.
-
-    Returns
-    -------
-    None
-        This function creates Streamlit UI components directly
-
-    Note
-    ----
-    This is the original implementation before questionnaire integration.
-    Use show_financial_overview() for the new questionnaire-based interface.
-    """
-    with st.expander("💶 Overzicht van je Huidige Situatie (Legacy)", expanded=False):
-        data, calculate_clicked = get_user_input()
-
-        if calculate_clicked:
-            display_summary(data)
