@@ -19,7 +19,7 @@ Dependencies
 
 Example
 -------
->>> from src.calculators.financial_overview import show_financiele_apk
+>>> from src.assessments.financiele_apk import show_financiele_apk
 >>> # In a Streamlit app:
 >>> show_financiele_apk()
 # Displays interactive Financiele APK calculator
@@ -31,11 +31,6 @@ are assumed to be in Euros (€). The simple mode includes validation
 to ensure input consistency.
 """
 
-from src.code.UI_components.Applied.questionnaire import (
-    NumberQuestion,
-    Questionnaire,
-    QuestionnaireConfig,
-)
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
@@ -43,6 +38,11 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.database.models import Asset, Liability, MonthlyFlow
+from src.UI_components.Applied.questionnaire import (
+    NumberQuestion,
+    Questionnaire,
+    QuestionnaireConfig,
+)
 
 
 def validate_financial_consistency(

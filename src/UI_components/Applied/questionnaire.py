@@ -60,12 +60,12 @@ import streamlit as st
 
 # Import standardized UI components
 try:
-    from src.code.UI_components.Basic.input import (
+    from src.UI_components.Basic.input import (
         display_calculation_button,
         display_currency_input,
         display_percentage_input,
     )
-    from src.code.UI_components.Basic.status import (
+    from src.UI_components.Basic.status import (
         display_progress_indicator,
         display_status_message,
     )

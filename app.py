@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from src.code.calculators.financial_overview import show_financiele_apk
+from src.assessments.financiele_apk import show_financiele_apk
 
 st.title("Financiele APK")
 
