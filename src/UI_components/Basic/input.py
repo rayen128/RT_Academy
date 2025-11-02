@@ -17,12 +17,12 @@ Dependencies
 - typing: Type hints
 """
 
-from typing import Optional
+from typing import Callable, Optional, cast
 
 import streamlit as st
 
 
-def display_currency_input(
+def display_currency_input(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     label: str,
     min_value: float = 0.0,
     value: float = 0.0,
@@ -72,18 +72,21 @@ def display_currency_input(
     ...     help_text="Include utilities if applicable"
     ... )
     """
-    return st.number_input(
-        f"{label} (€)",
-        min_value=min_value,
-        value=value,
-        step=step,
-        format="%.2f",
-        help=help_text,
-        key=key,
+    return cast(
+        float,
+        st.number_input(
+            f"{label} (€)",
+            min_value=min_value,
+            value=value,
+            step=step,
+            format="%.2f",
+            help=help_text,
+            key=key,
+        ),
     )
 
 
-def display_percentage_input(
+def display_percentage_input(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     label: str,
     min_value: float = 0.0,
     max_value: float = 100.0,
@@ -138,15 +141,18 @@ def display_percentage_input(
     ...     help_text="Percentage of income you want to save monthly"
     ... )
     """
-    return st.number_input(
-        f"{label} (%)",
-        min_value=min_value,
-        max_value=max_value,
-        value=value,
-        step=step,
-        format="%.1f",
-        help=help_text,
-        key=key,
+    return cast(
+        float,
+        st.number_input(
+            f"{label} (%)",
+            min_value=min_value,
+            max_value=max_value,
+            value=value,
+            step=step,
+            format="%.1f",
+            help=help_text,
+            key=key,
+        ),
     )
 
 
@@ -192,11 +198,11 @@ def display_calculation_button(
     ...     # Perform debt analysis
     ...     analyze_debt_situation()
     """
-    return st.button(label, key=key, help=help_text, type=button_type)
+    return cast(bool, st.button(label, key=key, help=help_text, type=button_type))
 
 
 def display_reset_section(
-    reset_function,
+    reset_function: Callable,
     reset_key: str = "reset_button",
     button_label: str = "Opnieuw beginnen",
     confirmation_required: bool = False,

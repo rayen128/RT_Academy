@@ -54,7 +54,7 @@ session state and persists across Streamlit reruns.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 import streamlit as st
 
@@ -71,11 +71,21 @@ try:
     )
 except ImportError:
     # Fallback for when UI components are not available
-    display_currency_input = None
-    display_percentage_input = None
-    display_calculation_button = None
-    display_progress_indicator = None
-    display_status_message = None
+    display_currency_input: Optional[  # type: ignore[no-redef]
+        Callable[[str, float, float, float, Optional[str], Optional[str]], float]
+    ] = None
+    display_percentage_input: Optional[  # type: ignore[no-redef]
+        Callable[[str, float, float, float, float, Optional[str], Optional[str]], float]
+    ] = None
+    display_calculation_button: Optional[  # type: ignore[no-redef]
+        Callable[[str, Optional[str], Optional[str], str], bool]
+    ] = None
+    display_progress_indicator: Optional[  # type: ignore[no-redef]
+        Callable[[float, str, Optional[str], bool], None]
+    ] = None
+    display_status_message: Optional[  # type: ignore[no-redef]
+        Callable[[str, str, Optional[str]], None]
+    ] = None
 
 
 @dataclass
@@ -759,7 +769,9 @@ class Questionnaire:
             )
             st.progress(progress)
 
-    def _show_previous_answers(self, current_step: int) -> None:
+    def _show_previous_answers(  # pylint: disable=too-many-branches
+        self, current_step: int
+    ) -> None:
         """Display previously entered answers."""
         if not self.config.show_previous_answers or current_step == 0:
             return
@@ -785,7 +797,9 @@ class Questionnaire:
 
                 st.write(f"**{question.text}:** {formatted_value}")
 
-    def _render_navigation(self, current_step: int, current_value: Any) -> bool:
+    def _render_navigation(  # pylint: disable=too-many-branches
+        self, current_step: int, current_value: Any
+    ) -> bool:
         """Render navigation buttons and handle navigation logic.
 
         Returns

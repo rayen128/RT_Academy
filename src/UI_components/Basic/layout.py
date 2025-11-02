@@ -100,7 +100,9 @@ def display_expandable_section(
     -------
     >>> def show_advanced_options():
     ...     st.slider("Risk Tolerance", 1, 10, 5)
-    ...     st.selectbox("Investment Strategy", ["Conservative", "Moderate", "Aggressive"])
+    ...     st.selectbox(
+    ...         "Investment Strategy", ["Conservative", "Moderate", "Aggressive"]
+    ...     )
 
     >>> display_expandable_section(
     ...     "Advanced Settings",
@@ -171,7 +173,7 @@ def display_content_container(
         content_func()
 
 
-def display_tabs_layout(tab_configs: list, default_tab: int = 0) -> None:
+def display_tabs_layout(tab_configs: list, _default_tab: int = 0) -> None:
     """Display content in a tabbed layout.
 
     Creates a tabbed interface for organizing related content.
@@ -207,7 +209,7 @@ def display_tabs_layout(tab_configs: list, default_tab: int = 0) -> None:
     tab_labels = [config["label"] for config in tab_configs]
     tabs = st.tabs(tab_labels)
 
-    for i, (tab, config) in enumerate(zip(tabs, tab_configs)):
+    for _, (tab, config) in enumerate(zip(tabs, tab_configs)):
         with tab:
             config["content_func"]()
 

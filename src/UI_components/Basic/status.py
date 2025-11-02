@@ -77,10 +77,9 @@ def get_financial_status_message(
 
     if value > 0:
         return positive_template.format(value=formatted_value), "success"
-    elif value < 0:
+    if value < 0:
         return negative_template.format(value=formatted_value), "error"
-    else:
-        return neutral_template, "warning"
+    return neutral_template, "warning"
 
 
 def display_status_message(
@@ -184,7 +183,8 @@ def display_validation_results(
 
         if show_success_count and total_count > 0:
             st.info(
-                f"💡 {passed_count}/{total_count} validations passed. These suggestions can help improve your financial health."
+                f"💡 {passed_count}/{total_count} validations passed. "
+                "These suggestions can help improve your financial health."
             )
         else:
             st.info("💡 These are suggestions to improve your financial health.")
@@ -310,10 +310,16 @@ def display_comparison_status(
         )
     elif current_value > target_value:
         status = "warning" if ratio < 1.2 else "error"
-        message = f"📈 **{label}:** {current_str} (Target: {target_str}) - {diff_str} above target"
+        message = (
+            f"📈 **{label}:** {current_str} (Target: {target_str}) - "
+            f"{diff_str} above target"
+        )
     else:
         status = "warning" if ratio > 0.8 else "error"
-        message = f"📉 **{label}:** {current_str} (Target: {target_str}) - {diff_str} below target"
+        message = (
+            f"📉 **{label}:** {current_str} (Target: {target_str}) - "
+            f"{diff_str} below target"
+        )
 
     display_status_message(message, status)
 

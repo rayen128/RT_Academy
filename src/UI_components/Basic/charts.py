@@ -18,16 +18,15 @@ Dependencies
 - typing: Type hints
 """
 
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
 from .status import display_status_message, get_financial_status_message
 
 
-def display_chart_with_status(
+def display_chart_with_status(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     title: str,
     figure: go.Figure,
     value: float,
@@ -88,7 +87,7 @@ def display_chart_with_status(
     display_status_message(message, status_type)
 
 
-def create_financial_bar_chart(
+def create_financial_bar_chart(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     categories: List[str],
     values: List[float],
     title: str,
@@ -123,7 +122,9 @@ def create_financial_bar_chart(
 
     Example
     -------
-    >>> categories = ["Monthly Income", "Fixed Expenses", "Variable Expenses", "Savings"]
+    >>> categories = [
+    ...     "Monthly Income", "Fixed Expenses", "Variable Expenses", "Savings"
+    ... ]
     >>> values = [3000.0, 1200.0, 800.0, 500.0]
     >>> fig = create_financial_bar_chart(
     ...     categories,
@@ -165,7 +166,7 @@ def create_financial_bar_chart(
         title=title,
         xaxis_title="Category",
         yaxis_title=f"Amount ({currency})",
-        yaxis=dict(tickformat=f"{currency},.0f"),
+        yaxis={"tickformat": f"{currency},.0f"},
         showlegend=False,
         height=400,
     )
@@ -173,7 +174,7 @@ def create_financial_bar_chart(
     return fig
 
 
-def create_financial_line_chart(
+def create_financial_line_chart(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     x_values: List[Union[str, int, float]],
     y_values: List[float],
     title: str,
@@ -229,8 +230,8 @@ def create_financial_line_chart(
                 x=x_values,
                 y=y_values,
                 mode="lines+markers",
-                line=dict(color=line_color, width=3),
-                marker=dict(size=8, color=line_color),
+                line={"color": line_color, "width": 3},
+                marker={"size": 8, "color": line_color},
                 hovertemplate=f"<b>%{{x}}</b><br>{currency}%{{y:,.2f}}<extra></extra>",
             )
         ]
@@ -240,7 +241,7 @@ def create_financial_line_chart(
         title=title,
         xaxis_title=x_label,
         yaxis_title=f"{y_label} ({currency})",
-        yaxis=dict(tickformat=f"{currency},.0f"),
+        yaxis={"tickformat": f"{currency},.0f"},
         height=400,
     )
 
@@ -279,7 +280,9 @@ def create_financial_pie_chart(
 
     Example
     -------
-    >>> expense_categories = ["Housing", "Food", "Transportation", "Entertainment", "Savings"]
+    >>> expense_categories = [
+    ...     "Housing", "Food", "Transportation", "Entertainment", "Savings"
+    ... ]
     >>> expense_amounts = [1200, 400, 300, 200, 500]
     >>> fig = create_financial_pie_chart(
     ...     expense_categories,
@@ -309,9 +312,12 @@ def create_financial_pie_chart(
                 labels=labels,
                 values=values,
                 hole=0.3,  # Creates a donut chart
-                marker=dict(colors=colors),
+                marker={"colors": colors},
                 textinfo="label+percent",
-                hovertemplate=f"<b>%{{label}}</b><br>{currency}%{{value:,.2f}}<br>%{{percent}}<extra></extra>",
+                hovertemplate=(
+                    f"<b>%{{label}}</b><br>{currency}%{{value:,.2f}}<br>"
+                    f"%{{percent}}<extra></extra>"
+                ),
             )
         ]
     )
@@ -320,7 +326,7 @@ def create_financial_pie_chart(
         title=title,
         height=400,
         showlegend=True,
-        legend=dict(orientation="v", yanchor="middle", y=0.5),
+        legend={"orientation": "v", "yanchor": "middle", "y": 0.5},
     )
 
     return fig
@@ -353,8 +359,12 @@ def display_chart_comparison(
 
     Example
     -------
-    >>> income_chart = create_financial_bar_chart(["Salary", "Freelance"], [3000, 500], "Income")
-    >>> expense_chart = create_financial_pie_chart(["Rent", "Food", "Other"], [1200, 400, 400], "Expenses")
+    >>> income_chart = create_financial_bar_chart(
+    ...     ["Salary", "Freelance"], [3000, 500], "Income"
+    ... )
+    >>> expense_chart = create_financial_pie_chart(
+    ...     ["Rent", "Food", "Other"], [1200, 400, 400], "Expenses"
+    ... )
     >>> display_chart_comparison(
     ...     income_chart,
     ...     expense_chart,

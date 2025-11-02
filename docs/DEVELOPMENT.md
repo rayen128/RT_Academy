@@ -16,7 +16,7 @@ cd RT_Academy
 ```bash
 python -m venv venv
 # On Windows:
-venv\Scripts\activate
+.\.venv\Scripts\Activate.ps1
 # On macOS/Linux:
 source venv/bin/activate
 ```
