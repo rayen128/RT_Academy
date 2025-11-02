@@ -17,7 +17,7 @@ Dependencies
 - typing: Type hints
 """
 
-from typing import Callable, Optional, cast
+from typing import Callable, Optional, Union, cast
 
 import streamlit as st
 
@@ -76,9 +76,9 @@ def display_currency_input(  # pylint: disable=too-many-arguments,too-many-posit
         float,
         st.number_input(
             f"{label} (€)",
-            min_value=min_value,
-            value=value,
-            step=step,
+            min_value=float(min_value),
+            value=float(value),
+            step=float(step),
             format="%.2f",
             help=help_text,
             key=key,
@@ -145,11 +145,147 @@ def display_percentage_input(  # pylint: disable=too-many-arguments,too-many-pos
         float,
         st.number_input(
             f"{label} (%)",
+            min_value=float(min_value),
+            max_value=float(max_value),
+            value=float(value),
+            step=float(step),
+            format="%.1f",
+            help=help_text,
+            key=key,
+        ),
+    )
+
+
+def display_smart_number_input(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    label: str,
+    min_value: Union[int, float] = 0,
+    max_value: Optional[Union[int, float]] = None,
+    value: Union[int, float] = 0,
+    step: Union[int, float] = 1,
+    format_str: str = "%.2f",
+    help_text: Optional[str] = None,
+    key: Optional[str] = None,
+    auto_detect_type: bool = True,
+) -> Union[int, float]:
+    """Smart number input that auto-detects currency/percentage based on label.
+
+    Automatically detects if the input should be a currency or percentage field
+    based on keywords in the label text, then delegates to the appropriate
+    specialized input component for consistent formatting and behavior.
+
+    Parameters
+    ----------
+    label : str
+        Input field label (used for auto-detection)
+    min_value : Union[int, float], optional
+        Minimum allowed value, by default 0
+    max_value : Optional[Union[int, float]], optional
+        Maximum allowed value, by default None
+    value : Union[int, float], optional
+        Default/initial value, by default 0
+    step : Union[int, float], optional
+        Step size for increment/decrement buttons, by default 1
+    format_str : str, optional
+        Format string for display (used for fallback only), by default "%.2f"
+    help_text : Optional[str], optional
+        Help text shown on hover, by default None
+    key : Optional[str], optional
+        Unique key for the input widget, by default None
+    auto_detect_type : bool, optional
+        Whether to enable auto-detection, by default True
+
+    Returns
+    -------
+    Union[int, float]
+        User input value
+
+    Example
+    -------
+    >>> # Auto-detects as currency input
+    >>> income = display_smart_number_input(
+    ...     "Monthly Income (€)",
+    ...     value=3000.0,
+    ...     step=250.0,
+    ...     help_text="Enter your total monthly income"
+    ... )
+
+    >>> # Auto-detects as percentage input
+    >>> rate = display_smart_number_input(
+    ...     "Interest Rate (%)",
+    ...     value=5.5,
+    ...     step=0.1,
+    ...     help_text="Annual interest rate"
+    ... )
+
+    >>> # Falls back to standard number input
+    >>> age = display_smart_number_input(
+    ...     "Age",
+    ...     min_value=16,
+    ...     max_value=100,
+    ...     value=30,
+    ...     step=1
+    ... )
+    """
+    if auto_detect_type:
+        # Currency detection - look for currency-related keywords
+        is_currency = (
+            "€" in label.lower()
+            or "euro" in label.lower()
+            or "bedrag" in label.lower()
+            or "kosten" in label.lower()
+            or "prijs" in label.lower()
+            or "waarde" in label.lower()
+            or "saldo" in label.lower()
+            or "schuld" in label.lower()
+            or "inkomen" in label.lower()
+            or "uitgaven" in label.lower()
+        )
+
+        # Percentage detection - look for percentage-related keywords
+        is_percentage = (
+            "%" in label.lower()
+            or "percentage" in label.lower()
+            or "procent" in label.lower()
+            or "rente" in label.lower()
+            or "rendement" in label.lower()
+        )
+
+        if is_currency:
+            # Clean label by removing currency symbols
+            clean_label = label.replace("(€)", "").replace("€", "").strip()
+            return display_currency_input(
+                clean_label,
+                min_value=float(min_value),
+                value=float(value),
+                step=float(step),
+                help_text=help_text,
+                key=key,
+            )
+        elif is_percentage:
+            # Clean label by removing percentage symbols
+            clean_label = label.replace("(%)", "").replace("%", "").strip()
+            max_val_pct = max_value if max_value is not None else 100.0
+            return display_percentage_input(
+                clean_label,
+                min_value=float(min_value),
+                max_value=float(max_val_pct),
+                value=float(value),
+                step=float(step),
+                help_text=help_text,
+                key=key,
+            )
+
+    # Fallback to standard number input for non-currency/percentage fields
+    # or when auto-detection is disabled
+    return cast(
+        Union[int, float],
+        st.number_input(
+            label,
             min_value=min_value,
             max_value=max_value,
             value=value,
             step=step,
-            format="%.1f",
+            format=format_str,
             help=help_text,
             key=key,
         ),
@@ -252,6 +388,7 @@ def display_reset_section(
 __all__ = [
     "display_currency_input",
     "display_percentage_input",
+    "display_smart_number_input",
     "display_calculation_button",
     "display_reset_section",
 ]

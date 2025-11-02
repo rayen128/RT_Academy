@@ -64,6 +64,7 @@ try:
         display_calculation_button,
         display_currency_input,
         display_percentage_input,
+        display_smart_number_input,
     )
     from src.UI_components.Basic.status import (
         display_progress_indicator,
@@ -75,7 +76,11 @@ except ImportError:
         Callable[[str, float, float, float, Optional[str], Optional[str]], float]
     ] = None
     display_percentage_input: Optional[  # type: ignore[no-redef]
-        Callable[[str, float, float, float, float, Optional[str], Optional[str]], float]
+        Callable[[str, float, float, float, float,
+                  Optional[str], Optional[str]], float]
+    ] = None
+    display_smart_number_input: Optional[  # type: ignore[no-redef]
+        Callable[..., Union[int, float]]
     ] = None
     display_calculation_button: Optional[  # type: ignore[no-redef]
         Callable[[str, Optional[str], Optional[str], str], bool]
@@ -228,51 +233,28 @@ class NumberQuestion(Question):
         self.format_str = format_str
 
     def render(self, current_value: Any = None) -> Union[int, float]:
-        """Render number input widget using standardized UI components when possible."""
+        """Render number input using standardized UI components."""
         value: Union[int, float] = (
             current_value if current_value is not None else self.get_default_value()
         )
 
-        # Check if this is a currency or percentage input
-        is_currency = (
-            "€" in self.text.lower()
-            or "euro" in self.text.lower()
-            or "bedrag" in self.text.lower()
-        )
-        is_percentage = (
-            "%" in self.text.lower()
-            or "percentage" in self.text.lower()
-            or "procent" in self.text.lower()
-        )
+        # Always delegate to the smart input component when available
+        if display_smart_number_input is not None:
+            return display_smart_number_input(
+                label=self.text,
+                min_value=self.min_value,
+                max_value=self.max_value,
+                value=value,
+                step=self.step,
+                format_str=self.format_str,
+                help_text=self.help_text,
+                key=f"input_{self.key}",
+                auto_detect_type=True,
+            )
 
-        # Use standardized UI components when available and appropriate
-        if is_currency and display_currency_input is not None:
-            # Remove currency symbols from label for standardized component
-            clean_label = self.text.replace("(€)", "").replace("€", "").strip()
-            result = display_currency_input(
-                clean_label,
-                min_value=self.min_value,
-                value=float(value),
-                step=self.step,
-                help_text=self.help_text,
-                key=f"input_{self.key}",
-            )
-        elif is_percentage and display_percentage_input is not None:
-            # Remove percentage symbols from label for standardized component
-            clean_label = self.text.replace("(%)", "").replace("%", "").strip()
-            max_val = self.max_value if self.max_value is not None else 100.0
-            result = display_percentage_input(
-                clean_label,
-                min_value=self.min_value,
-                max_value=max_val,
-                value=float(value),
-                step=self.step,
-                help_text=self.help_text,
-                key=f"input_{self.key}",
-            )
-        else:
-            # Fallback to standard Streamlit number input
-            result = st.number_input(
+        # Fallback only if Basic components unavailable
+        return float(
+            st.number_input(
                 self.text,
                 min_value=self.min_value,
                 max_value=self.max_value,
@@ -282,8 +264,7 @@ class NumberQuestion(Question):
                 help=self.help_text,
                 key=f"input_{self.key}",
             )
-
-        return float(result)  # Ensure we return a proper numeric type
+        )
 
     def get_default_value(self) -> Union[int, float]:
         """Get default value (minimum value or 0)."""
@@ -557,12 +538,30 @@ class SliderQuestion(Question):
             current_value if current_value is not None else self.get_default_value()
         )
 
+        # Ensure type consistency for Streamlit
+        # If any value is float, convert all to float
+        if (
+            isinstance(self.min_value, float)
+            or isinstance(self.max_value, float)
+            or isinstance(self.step, float)
+            or isinstance(self.default_value, float)
+        ):
+            min_val = float(self.min_value)
+            max_val = float(self.max_value)
+            step_val = float(self.step)
+            value = float(value)
+        else:
+            min_val = int(self.min_value)
+            max_val = int(self.max_value)
+            step_val = int(self.step)
+            value = int(value)
+
         result = st.slider(
             self.text,
-            min_value=self.min_value,
-            max_value=self.max_value,
+            min_value=min_val,
+            max_value=max_val,
             value=value,
-            step=self.step,
+            step=step_val,
             format=self.format_str,
             help=self.help_text,
             key=f"input_{self.key}",
@@ -789,7 +788,8 @@ class Questionnaire:
                 elif isinstance(question, BooleanQuestion):
                     formatted_value = "Ja" if value else "Nee"
                 elif isinstance(question, MultiSelectQuestion):
-                    formatted_value = ", ".join(value) if value else "Geen selectie"
+                    formatted_value = ", ".join(
+                        value) if value else "Geen selectie"
                 elif isinstance(question, DateQuestion):
                     formatted_value = str(value) if value else "Geen datum"
                 else:
