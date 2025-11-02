@@ -43,6 +43,12 @@ from src.UI_components.Applied.questionnaire import (
     Questionnaire,
     QuestionnaireConfig,
 )
+from src.UI_components.Basic import (
+    display_calculation_button,
+    display_info_card,
+    display_progress_indicator,
+    display_section_header,
+)
 
 
 def validate_financial_consistency(
@@ -102,7 +108,8 @@ class FinancieleAPKData:  # pylint: disable=too-many-instance-attributes
     """Data structure for comprehensive Financiele APK information.
 
     Represents all financial data collected from either simple or advanced
-    input modes, providing a unified structure for Financiele APK calculations and display.
+    input modes, providing a unified structure for Financiele APK calculations
+    and display.
 
     Attributes
     ----------
@@ -156,6 +163,87 @@ class FinancieleAPKData:  # pylint: disable=too-many-instance-attributes
     liabilities: List[Liability]
     income_streams: List[MonthlyFlow]
     expense_streams: List[MonthlyFlow]
+
+
+def show_onboarding() -> bool:
+    """Show the onboarding screen for Financiele APK.
+
+    Displays welcome message, explains what the tool does, and provides
+    a start button to begin the assessment process.
+
+    Returns
+    -------
+    bool
+        True if user clicked "Start APK" button, False otherwise
+
+    Example
+    -------
+    >>> # In Streamlit context:
+    >>> if show_onboarding():
+    ...     # User clicked start, proceed to questionnaire
+    ...     pass
+    """
+    # Display title
+    display_section_header("Welkom bij de Financiële APK", "🏦")
+
+    # Progress indicator at 0%
+    display_progress_indicator(
+        progress_value=0.0, title="Voortgang Financiële APK", show_percentage=True
+    )
+
+    st.write("---")
+
+    # Explanation section
+    st.write("### Wat houdt de Financiële APK in?")
+
+    # Bullet points explaining the tool
+    st.markdown(
+        """
+    - 🔍 **De tool helpt je inzicht te krijgen in jouw financiële situatie**
+      We analyseren je huidige inkomsten, uitgaven, bezittingen en schulden
+
+    - ⚠️ **Je ontdekt aandachtspunten, valkuilen en kansen**
+      Identificeer risico's en mogelijkheden voor verbetering
+
+    - 📋 **Op basis hiervan worden actiepunten en een concreet plan gemaakt**
+      Krijg praktische stappen om je financiële situatie te verbeteren
+
+    - 🎯 **Je doelen worden doorgerekend (sparen of beleggen)**
+      We berekenen realistische scenario's voor je financiële doelen
+
+    - 🚀 **Tot slot ga je aan de slag met uitvoeren en monitoren**
+      Implementeer het plan en houd je voortgang bij
+    """
+    )
+
+    st.write("---")
+
+    # Information card with additional context
+    display_info_card(
+        title="Waarom een Financiële APK?",
+        content=(
+            "Net zoals een auto een APK nodig heeft voor veiligheid, heeft je "
+            "financiële situatie regelmatig een check-up nodig. Deze tool helpt "
+            "je om grip te krijgen op je geld en slimme keuzes te maken voor je "
+            "toekomst."
+        ),
+        icon="💡",
+        card_type="info",
+    )
+
+    st.write("")
+
+    # Center the start button
+    _, col2, _ = st.columns([1, 1, 1])
+    with col2:
+        start_clicked = display_calculation_button(
+            label="Start APK",
+            key="start_financiele_apk",
+            help_text="Begin met de financiële analyse",
+            button_type="primary",
+        )
+
+    return start_clicked
 
 
 def create_financiele_apk_questionnaire() -> Questionnaire:
@@ -558,8 +646,8 @@ def display_summary(data: FinancieleAPKData) -> None:
 def show_financiele_apk() -> None:
     """Display the complete Financiele APK calculator interface.
 
-    Main entry point for the Financiele APK calculator. Uses a step-by-step
-    questionnaire to collect financial data, then displays comprehensive results.
+    Main entry point for the Financiele APK calculator. Implements a step-by-step
+    flow starting with onboarding, then questionnaire, and finally results.
 
     Returns
     -------
@@ -570,21 +658,59 @@ def show_financiele_apk() -> None:
     -------
     >>> # In Streamlit app:
     >>> show_financiele_apk()
-    # Creates expandable "💶 Financiele APK" section
+    # Creates expandable "💶 Financiele APK" section with step-by-step flow
 
     Note
     ----
-    Uses questionnaire-based data collection for improved user experience.
-    Results are displayed automatically when the questionnaire is completed.
-    The expander starts expanded to show the questionnaire.
+    Uses session state to track progress through the assessment steps.
+    Starts with onboarding, then moves to questionnaire and results.
     """
     with st.expander("💶 Financiele APK", expanded=True):
-        st.write("### Financiele APK Vragenlijst")
-        questionnaire = create_financiele_apk_questionnaire()
-        questionnaire_data = questionnaire.run()
+        # Initialize session state for APK flow
+        if "apk_step" not in st.session_state:
+            st.session_state.apk_step = "onboarding"
+        if "apk_started" not in st.session_state:
+            st.session_state.apk_started = False
 
-        # If questionnaire is completed, show results
-        if questionnaire_data is not None:
+        # Step 1: Onboarding
+        if st.session_state.apk_step == "onboarding":
+            if show_onboarding():
+                st.session_state.apk_step = "questionnaire"
+                st.session_state.apk_started = True
+                st.rerun()
+
+        # Step 2: Questionnaire
+        elif st.session_state.apk_step == "questionnaire":
+            # Show progress at 20% when questionnaire starts
+            display_progress_indicator(
+                progress_value=0.2,
+                title="Voortgang Financiële APK",
+                subtitle="Vragenlijst gestart",
+                show_percentage=True,
+            )
+
+            st.write("### Financiele APK Vragenlijst")
+            questionnaire = create_financiele_apk_questionnaire()
+            questionnaire_data = questionnaire.run()
+
+            # If questionnaire is completed, show results
+            if questionnaire_data is not None:
+                st.session_state.apk_step = "results"
+                st.session_state.questionnaire_data = questionnaire_data
+                st.rerun()
+
+        # Step 3: Results
+        elif st.session_state.apk_step == "results":
+            # Show progress at 100% when showing results
+            display_progress_indicator(
+                progress_value=1.0,
+                title="Voortgang Financiële APK",
+                subtitle="APK voltooid!",
+                show_percentage=True,
+            )
+
+            questionnaire_data = st.session_state.get("questionnaire_data", {})
+
             # Validate consistency before showing results
             monthly_income = questionnaire_data.get("monthly_income", 0.0)
             monthly_expenses = questionnaire_data.get("monthly_expenses", 0.0)
@@ -602,7 +728,7 @@ def show_financiele_apk() -> None:
                 )
 
             st.write("---")
-            st.success("Vragenlijst voltooid! Hier is je Financiele APK:")
+            st.success("APK voltooid! Hier is je Financiele APK:")
 
             # Convert questionnaire data to Financiele APK data
             financial_data = questionnaire_data_to_financiele_apk(questionnaire_data)
@@ -612,6 +738,13 @@ def show_financiele_apk() -> None:
 
             # Add reset button to allow starting over
             st.write("---")
-            if st.button("Opnieuw beginnen", key="reset_questionnaire"):
+            if st.button("Nieuwe APK starten", key="reset_questionnaire"):
+                # Reset session state to restart the flow
+                st.session_state.apk_step = "onboarding"
+                st.session_state.apk_started = False
+                if "questionnaire_data" in st.session_state:
+                    del st.session_state.questionnaire_data
+                # Also reset questionnaire data
+                questionnaire = create_financiele_apk_questionnaire()
                 questionnaire.reset()
                 st.rerun()
