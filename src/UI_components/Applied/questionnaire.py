@@ -76,8 +76,7 @@ except ImportError:
         Callable[[str, float, float, float, Optional[str], Optional[str]], float]
     ] = None
     display_percentage_input: Optional[  # type: ignore[no-redef]
-        Callable[[str, float, float, float, float,
-                  Optional[str], Optional[str]], float]
+        Callable[[str, float, float, float, float, Optional[str], Optional[str]], float]
     ] = None
     display_smart_number_input: Optional[  # type: ignore[no-redef]
         Callable[..., Union[int, float]]
@@ -788,8 +787,7 @@ class Questionnaire:
                 elif isinstance(question, BooleanQuestion):
                     formatted_value = "Ja" if value else "Nee"
                 elif isinstance(question, MultiSelectQuestion):
-                    formatted_value = ", ".join(
-                        value) if value else "Geen selectie"
+                    formatted_value = ", ".join(value) if value else "Geen selectie"
                 elif isinstance(question, DateQuestion):
                     formatted_value = str(value) if value else "Geen datum"
                 else:

@@ -302,8 +302,7 @@ class CategoricalQuestionnaire:
     def _show_overall_progress(self) -> None:
         """Display overall progress across all categories."""
         progress_data = self._get_progress()
-        completed_categories = sum(
-            1 for p in progress_data.values() if p.completed)
+        completed_categories = sum(1 for p in progress_data.values() if p.completed)
         total_categories = len(self.categories)
 
         overall_progress = (
@@ -321,13 +320,11 @@ class CategoricalQuestionnaire:
         self, category: QuestionCategory, progress: CategoryProgress
     ) -> None:
         """Display progress for current category."""
-        visible_questions = self._get_visible_questions(
-            category, progress.data)
+        visible_questions = self._get_visible_questions(category, progress.data)
         total_questions = len(visible_questions)
 
         if total_questions > 0:
-            category_progress = (
-                progress.current_question + 1) / total_questions
+            category_progress = (progress.current_question + 1) / total_questions
             current_q = min(progress.current_question + 1, total_questions)
 
             display_progress_indicator(
@@ -357,8 +354,7 @@ class CategoricalQuestionnaire:
     def _run_category(self, category: QuestionCategory) -> Optional[Dict[str, Any]]:
         """Run a single category questionnaire."""
         progress = self._get_progress()[category.name]
-        visible_questions = self._get_visible_questions(
-            category, progress.data)
+        visible_questions = self._get_visible_questions(category, progress.data)
 
         if not visible_questions:
             # No questions to show, mark as completed
@@ -396,8 +392,7 @@ class CategoricalQuestionnaire:
                     "Vorige vraag", key=f"prev_q_{category.name}_{current_question_idx}"
                 ):
                     progress.data[question.key] = current_value
-                    progress.current_question = max(
-                        0, current_question_idx - 1)
+                    progress.current_question = max(0, current_question_idx - 1)
                     self._update_progress(category.name, progress)
                     st.rerun()
 
@@ -432,8 +427,7 @@ class CategoricalQuestionnaire:
 
     def reset(self) -> None:
         """Reset the entire questionnaire."""
-        keys_to_remove = [self.current_category_key,
-                          self.progress_key, self.data_key]
+        keys_to_remove = [self.current_category_key, self.progress_key, self.data_key]
         for key in keys_to_remove:
             if key in st.session_state:
                 del st.session_state[key]
@@ -851,7 +845,7 @@ def create_comprehensive_financiele_apk_questionnaire() -> CategoricalQuestionna
                 text="Wat is het totale bedrag van deze tweede schuld? (€)",
                 min_value=0,
                 step=100,
-                    help_text="Het totale bedrag van je tweede schuld",
+                help_text="Het totale bedrag van je tweede schuld",
             ),
             condition_key="schuld_type_2",
             condition_value=[
@@ -871,7 +865,7 @@ def create_comprehensive_financiele_apk_questionnaire() -> CategoricalQuestionna
                 text="Wat betaal je maandelijks af aan deze tweede schuld? (€)",
                 min_value=0,
                 step=25,
-                    help_text="Maandelijkse aflossing van je tweede schuld",
+                help_text="Maandelijkse aflossing van je tweede schuld",
             ),
             condition_key="schuld_type_2",
             condition_value=[
@@ -965,7 +959,7 @@ def create_comprehensive_financiele_apk_questionnaire() -> CategoricalQuestionna
                 text="Hoeveel geld heb je hiervoor nodig? (€)",
                 min_value=0,
                 step=500,
-                    help_text="Het totale bedrag dat je nodig hebt voor dit doel",
+                help_text="Het totale bedrag dat je nodig hebt voor dit doel",
             ),
             condition_key="doel_1_naam",
             condition_value="",  # Show if name is not empty
@@ -978,7 +972,7 @@ def create_comprehensive_financiele_apk_questionnaire() -> CategoricalQuestionna
                 text="Hoeveel heb je hier al voor gespaard? (€)",
                 min_value=0,
                 step=100,
-                    help_text="Het bedrag dat je al hebt gespaard voor dit doel",
+                help_text="Het bedrag dat je al hebt gespaard voor dit doel",
             ),
             condition_key="doel_1_naam",
             condition_value="",
@@ -1022,7 +1016,7 @@ def create_comprehensive_financiele_apk_questionnaire() -> CategoricalQuestionna
                 text="Hoeveel geld heb je hiervoor nodig? (€)",
                 min_value=0,
                 step=500,
-                    help_text="Het totale bedrag voor je tweede doel",
+                help_text="Het totale bedrag voor je tweede doel",
             ),
             condition_key="doel_2_naam",
             condition_value="",
@@ -1376,8 +1370,7 @@ def _create_simple_financial_lists(
         else []
     )
     liabilities = (
-        [Liability(name="Totale schulden", amount=total_debt)
-         ] if total_debt > 0 else []
+        [Liability(name="Totale schulden", amount=total_debt)] if total_debt > 0 else []
     )
     income_streams = (
         [MonthlyFlow(name="Maandelijks inkomen", amount=monthly_income)]
@@ -1476,8 +1469,7 @@ def comprehensive_data_to_financiele_apk(data: Dict[str, Any]) -> FinancieleAPKD
         Complete financial data structure with calculated totals
     """
     # Calculate monthly income
-    monthly_income = data.get("primair_inkomen", 0.0) + \
-        data.get("bijinkomen", 0.0)
+    monthly_income = data.get("primair_inkomen", 0.0) + data.get("bijinkomen", 0.0)
 
     # Calculate monthly expenses
     monthly_expenses = (
@@ -1519,12 +1511,10 @@ def comprehensive_data_to_financiele_apk(data: Dict[str, Any]) -> FinancieleAPKD
             auto_name = "Auto"
         assets.append(Asset(name=auto_name, value=data["auto_waarde"]))
     if data.get("beleggingen_waarde", 0.0) > 0:
-        assets.append(Asset(name="Beleggingen",
-                      value=data["beleggingen_waarde"]))
+        assets.append(Asset(name="Beleggingen", value=data["beleggingen_waarde"]))
     if data.get("overige_bezittingen_waarde", 0.0) > 0:
         assets.append(
-            Asset(name="Overige bezittingen",
-                  value=data["overige_bezittingen_waarde"])
+            Asset(name="Overige bezittingen", value=data["overige_bezittingen_waarde"])
         )
     if data.get("woningwaarde", 0.0) > 0:
         assets.append(Asset(name="Woning", value=data["woningwaarde"]))
@@ -1532,20 +1522,17 @@ def comprehensive_data_to_financiele_apk(data: Dict[str, Any]) -> FinancieleAPKD
     # Create detailed lists for liabilities
     liabilities = []
     if data.get("hypotheekbedrag", 0.0) > 0:
-        liabilities.append(
-            Liability(name="Hypotheek", amount=data["hypotheekbedrag"]))
+        liabilities.append(Liability(name="Hypotheek", amount=data["hypotheekbedrag"]))
     if data.get("schuld_bedrag_1", 0.0) > 0:
         debt_name = data.get("schuld_type_1", "Schuld")
         if debt_name == "Geen schulden":
             debt_name = "Schuld"
-        liabilities.append(
-            Liability(name=debt_name, amount=data["schuld_bedrag_1"]))
+        liabilities.append(Liability(name=debt_name, amount=data["schuld_bedrag_1"]))
     if data.get("schuld_bedrag_2", 0.0) > 0:
         debt_name = data.get("schuld_type_2", "Tweede schuld")
         if debt_name == "Geen tweede schuld":
             debt_name = "Tweede schuld"
-        liabilities.append(
-            Liability(name=debt_name, amount=data["schuld_bedrag_2"]))
+        liabilities.append(Liability(name=debt_name, amount=data["schuld_bedrag_2"]))
 
     # Create detailed lists for income streams
     income_streams = []
@@ -1554,8 +1541,7 @@ def comprehensive_data_to_financiele_apk(data: Dict[str, Any]) -> FinancieleAPKD
             MonthlyFlow(name="Primair inkomen", amount=data["primair_inkomen"])
         )
     if data.get("bijinkomen", 0.0) > 0:
-        income_streams.append(MonthlyFlow(
-            name="Bijinkomen", amount=data["bijinkomen"]))
+        income_streams.append(MonthlyFlow(name="Bijinkomen", amount=data["bijinkomen"]))
 
     # Create detailed lists for expense streams
     expense_streams = []
@@ -1569,8 +1555,7 @@ def comprehensive_data_to_financiele_apk(data: Dict[str, Any]) -> FinancieleAPKD
         )
     if data.get("variabele_kosten", 0.0) > 0:
         expense_streams.append(
-            MonthlyFlow(name="Variabele kosten",
-                        amount=data["variabele_kosten"])
+            MonthlyFlow(name="Variabele kosten", amount=data["variabele_kosten"])
         )
     if data.get("hypotheek_maandlasten", 0.0) > 0:
         expense_streams.append(
@@ -1719,8 +1704,7 @@ def create_cash_flow_visualization(data: FinancieleAPKData) -> go.Figure:
         Plotly figure showing income, expenses, and leftover amount
     """
     categories = ["Inkomsten", "Uitgaven", "Over/Tekort"]
-    amounts = [data.monthly_income,
-               data.monthly_expenses, data.monthly_leftover]
+    amounts = [data.monthly_income, data.monthly_expenses, data.monthly_leftover]
     colors = ["green", "red", "blue" if data.monthly_leftover >= 0 else "orange"]
 
     fig = go.Figure()
@@ -2023,16 +2007,13 @@ def show_financiele_apk() -> None:
                 )
 
                 # Display completeness warnings
-                display_data_completeness_warnings(
-                    questionnaire_data, apk_mode)
+                display_data_completeness_warnings(questionnaire_data, apk_mode)
 
             else:
                 # Original quick mode validation and conversion
                 monthly_income = questionnaire_data.get("monthly_income", 0.0)
-                monthly_expenses = questionnaire_data.get(
-                    "monthly_expenses", 0.0)
-                monthly_leftover = questionnaire_data.get(
-                    "monthly_leftover", 0.0)
+                monthly_expenses = questionnaire_data.get("monthly_expenses", 0.0)
+                monthly_leftover = questionnaire_data.get("monthly_leftover", 0.0)
 
                 is_consistent, warning_message = validate_financial_consistency(
                     monthly_income, monthly_expenses, monthly_leftover
