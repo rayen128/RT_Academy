@@ -62,6 +62,8 @@ __all__ = [
     # Layout components
     "display_two_column_layout",
     "display_expandable_section",
+    "display_category_navigation",
+    "display_question_navigation",
     # Status components
     "get_financial_status_message",
     "display_status_message",

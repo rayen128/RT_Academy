@@ -173,6 +173,168 @@ def display_content_container(
         content_func()
 
 
+def display_category_navigation(
+    categories: list,
+    current_category_idx: int,
+    progress_data: dict,
+    on_category_change_key: str = "category_nav",
+) -> Optional[int]:
+    """Display an interactive category navigation panel.
+
+    Creates a sidebar or section showing all categories with their progress
+    and allows direct navigation between categories.
+
+    Parameters
+    ----------
+    categories : list
+        List of category objects with name, description, icon attributes
+    current_category_idx : int
+        Index of currently active category
+    progress_data : dict
+        Dictionary mapping category names to progress information
+    on_category_change_key : str
+        Unique key for the navigation component
+
+    Returns
+    -------
+    Optional[int]
+        New category index if changed, None if no change
+    """
+    st.subheader("📋 Categorie Overzicht")
+
+    # Calculate overall progress
+    total_categories = len(categories)
+    completed_categories = sum(
+        1
+        for cat in categories
+        if hasattr(progress_data.get(cat.name, {}), "completed")
+        and progress_data.get(cat.name, {}).completed
+    )
+    overall_progress = (
+        completed_categories / total_categories if total_categories > 0 else 0
+    )
+
+    # Show overall progress
+    st.progress(
+        overall_progress,
+        text=f"Voortgang: {completed_categories}/{total_categories} categorieën voltooid",
+    )
+
+    st.write("---")
+
+    # Create navigation buttons for each category
+    for idx, category in enumerate(categories):
+        category_progress = progress_data.get(category.name)
+        is_completed = category_progress.completed if category_progress else False
+        is_current = idx == current_category_idx
+
+        # Determine status icon and color
+        if is_completed:
+            status_icon = "✅"
+            status_text = "Voltooid"
+        elif is_current:
+            status_icon = "🔄"
+            status_text = "Actief"
+        else:
+            status_icon = "⏳"
+            status_text = "Wachtend"
+
+        # Create button layout
+        col1, col2 = st.columns([4, 1])
+
+        with col1:
+            # Create button with category info
+            button_text = f"{category.icon} {category.name}"
+            if st.button(
+                button_text,
+                key=f"{on_category_change_key}_cat_{idx}",
+                type="primary" if is_current else "secondary",
+                disabled=is_current,
+                use_container_width=True,
+            ):
+                return idx
+
+        with col2:
+            st.write(f"{status_icon}")
+
+        # Show category description and progress details
+        if is_current:
+            st.caption(f"📝 {category.description}")
+
+            # Show question progress within category
+            if hasattr(category, "questions") and category_progress:
+                current_q = category_progress.current_question
+                total_q = len(category.questions)
+                if total_q > 0:
+                    q_progress = current_q / total_q
+                    st.progress(q_progress, text=f"Vraag {current_q + 1}/{total_q}")
+        elif not is_current:
+            with st.expander(f"📋 Details van {category.name}", expanded=False):
+                st.caption(f"📝 {category.description}")
+                st.caption(f"Status: {status_text}")
+
+    return None
+
+
+def display_question_navigation(
+    questions: list,
+    current_question_idx: int,
+    category_name: str,
+    navigation_key: str = "question_nav",
+) -> Optional[int]:
+    """Display navigation for questions within a category.
+
+    Creates a horizontal navigation bar showing question numbers
+    and allowing direct navigation to specific questions.
+
+    Parameters
+    ----------
+    questions : list
+        List of question objects
+    current_question_idx : int
+        Index of currently active question
+    category_name : str
+        Name of the current category
+    navigation_key : str
+        Unique key for the navigation component
+
+    Returns
+    -------
+    Optional[int]
+        New question index if changed, None if no change
+    """
+    if len(questions) <= 1:
+        return None
+
+    st.subheader(f"🔢 Vragennavigatie - {category_name}")
+
+    # Create question number buttons
+    # Max 10 columns to prevent overflow
+    cols = st.columns(min(len(questions), 10))
+
+    for idx, question in enumerate(questions):
+        col_idx = idx % 10  # Wrap to next row if more than 10 questions
+        if idx > 0 and col_idx == 0:
+            # Create new row
+            cols = st.columns(min(len(questions) - idx, 10))
+
+        with cols[col_idx]:
+            is_current = idx == current_question_idx
+            button_text = f"{idx + 1}"
+
+            if st.button(
+                button_text,
+                key=f"{navigation_key}_{category_name}_q_{idx}",
+                type="primary" if is_current else "secondary",
+                disabled=is_current,
+                use_container_width=True,
+                help=f"Ga naar vraag {idx + 1}: {question.text[:50]}...",
+            ):
+                return idx
+
+    return None
+
+
 def display_tabs_layout(tab_configs: list, _default_tab: int = 0) -> None:
     """Display content in a tabbed layout.
 

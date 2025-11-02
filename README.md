@@ -49,7 +49,7 @@ streamlit run app.py
 
 ## Technische Details
 
-- Python 3.8+
+- Python 3.13+
 - Streamlit voor de web interface
 - Plotly voor interactieve visualisaties
 - NumPy voor berekeningen

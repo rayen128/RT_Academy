@@ -54,6 +54,11 @@ from src.UI_components.Basic import (
     display_progress_indicator,
     display_section_header,
 )
+from src.UI_components.Basic.layout import (
+    display_category_navigation,
+    display_question_navigation,
+    display_two_column_layout,
+)
 
 
 @dataclass
@@ -354,6 +359,13 @@ class CategoricalQuestionnaire:
     def _run_category(self, category: QuestionCategory) -> Optional[Dict[str, Any]]:
         """Run a single category questionnaire."""
         progress = self._get_progress()[category.name]
+
+        # IMPORTANT: Merge global data into category progress to maintain consistency
+        global_data = self._get_all_data()
+        for question in category.questions:
+            if question.key in global_data and question.key not in progress.data:
+                progress.data[question.key] = global_data[question.key]
+
         visible_questions = self._get_visible_questions(category, progress.data)
 
         if not visible_questions:
@@ -382,6 +394,14 @@ class CategoricalQuestionnaire:
         question = visible_questions[current_question_idx]
         current_value = question.render(progress.data.get(question.key))
 
+        # AUTO-SAVE: Only save if value changed and is not None
+        previous_value = progress.data.get(question.key)
+        if current_value is not None and current_value != previous_value:
+            progress.data[question.key] = current_value
+            self._update_progress(category.name, progress)
+            # Also save to global data immediately
+            self._store_data({question.key: current_value})
+
         # Navigation buttons
         col1, col2, col3 = st.columns([1, 1, 1])
 
@@ -391,7 +411,7 @@ class CategoricalQuestionnaire:
                 if st.button(
                     "Vorige vraag", key=f"prev_q_{category.name}_{current_question_idx}"
                 ):
-                    progress.data[question.key] = current_value
+                    # Data is already auto-saved above
                     progress.current_question = max(0, current_question_idx - 1)
                     self._update_progress(category.name, progress)
                     st.rerun()
@@ -406,7 +426,7 @@ class CategoricalQuestionnaire:
                 key = f"complete_cat_{category.name}"
 
             if st.button(button_text, key=key, type="primary"):
-                progress.data[question.key] = current_value
+                # Data is already auto-saved above
                 progress.current_question = current_question_idx + 1
 
                 # Check if category is now complete
@@ -423,11 +443,290 @@ class CategoricalQuestionnaire:
                 self._update_progress(category.name, progress)
                 st.rerun()
 
+        # Return category data if completed, None if still in progress
+        if progress.completed:
+            return progress.data
+
         return None
+
+    def show_overview(self) -> Optional[Dict[str, Any]]:
+        """Display a complete overview of all categories and their progress."""
+        st.title("Overzicht")
+
+        progress_data = self._get_progress()
+        all_data = self._get_all_data()
+
+        # Overall statistics
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            total_categories = len(self.categories)
+            completed_categories = sum(
+                1
+                for cat in self.categories
+                if progress_data.get(cat.name, CategoryProgress(cat.name)).completed
+            )
+            st.metric(
+                "Categorieën",
+                f"{completed_categories}/{total_categories}",
+                delta=f"{(completed_categories / total_categories * 100):.0f}% voltooid",
+            )
+
+        with col2:
+            total_questions = sum(len(cat.questions) for cat in self.categories)
+            answered_questions = sum(
+                len(progress_data.get(cat.name, CategoryProgress(cat.name)).data)
+                for cat in self.categories
+            )
+            st.metric(
+                "Vragen",
+                f"{answered_questions}/{total_questions}",
+                delta=f"{(answered_questions / total_questions * 100):.0f}% beantwoord",
+            )
+
+        with col3:
+            completion_percentage = (
+                (completed_categories / total_categories * 100)
+                if total_categories > 0
+                else 0
+            )
+            st.metric("Voltooiing", f"{completion_percentage:.0f}%")
+
+        st.write("---")
+
+        # Category details
+        for i, category in enumerate(self.categories):
+            category_progress = progress_data.get(
+                category.name, CategoryProgress(category.name)
+            )
+            is_completed = category_progress.completed
+
+            # Category header
+            with st.expander(
+                f"{category.icon} {category.name}", expanded=not is_completed
+            ):
+                col_info, col_action = st.columns([3, 1])
+
+                with col_info:
+                    st.write(f"**Beschrijving:** {category.description}")
+
+                    # Question progress within category
+                    answered_in_cat = len(category_progress.data)
+                    total_in_cat = len(category.questions)
+                    st.progress(
+                        answered_in_cat / total_in_cat if total_in_cat > 0 else 0,
+                        text=f"Vragen: {answered_in_cat}/{total_in_cat}",
+                    )
+
+                    if is_completed:
+                        st.success("✅ Categorie voltooid")
+                    elif answered_in_cat > 0:
+                        st.info(
+                            f"🔄 {answered_in_cat} van {total_in_cat} vragen beantwoord"
+                        )
+                    else:
+                        st.warning("⏳ Nog niet gestart")
+
+                with col_action:
+                    if st.button(
+                        f"Ga naar {category.name}",
+                        key=f"goto_overview_{i}",
+                        type="primary" if not is_completed else "secondary",
+                    ):
+                        # Navigate to the category and switch to step-by-step mode
+                        self._set_current_category_index(i)
+                        # Store that we want to enter step-by-step mode for this category
+                        st.session_state[f"{self.name}_enter_stepmode"] = True
+                        st.rerun()
+
+                # Show answered questions
+                if category_progress.data:
+                    st.subheader("📝 Beantwoorde vragen:")
+                    for question in category.questions:
+                        if question.key in category_progress.data:
+                            value = category_progress.data[question.key]
+                            st.write(f"• **{question.text}:** {value}")
+
+        # Action buttons (removed Export Gegevens)
+        st.write("---")
+        col_actions = st.columns(3)  # Changed from 4 to 3 columns
+
+        with col_actions[0]:
+            if st.button(
+                "🔄 Start opnieuw", type="secondary", use_container_width=True
+            ):
+                self.reset()
+                st.rerun()
+
+        with col_actions[1]:
+            if not self.is_complete():
+                if st.button("▶️ Ga verder", type="primary", use_container_width=True):
+                    # Find first incomplete category and navigate to it
+                    for i, cat in enumerate(self.categories):
+                        if not progress_data.get(
+                            cat.name, CategoryProgress(cat.name)
+                        ).completed:
+                            self._set_current_category_index(i)
+                            # Store that we want to enter step-by-step mode
+                            st.session_state[f"{self.name}_enter_stepmode"] = True
+                            st.rerun()
+                            break
+
+        with col_actions[2]:
+            if self.is_complete():
+                if st.button(
+                    "📊 Toon resultaten", type="primary", use_container_width=True
+                ):
+                    st.balloons()
+                    st.success("Vragenlijst voltooid! Resultaten worden verwerkt...")
+                    return self.get_data()
+
+        return None
+
+    def _run_step_by_step_mode(self) -> Optional[Dict[str, Any]]:
+        """Run step-by-step mode for the current category."""
+        # Show back to overview button
+        if st.button("⬅️ Terug naar overzicht", key="back_to_overview"):
+            # Exit step-by-step mode
+            st.session_state[f"{self.name}_in_stepmode"] = False
+            st.rerun()
+
+        st.write("---")
+
+        # Check if questionnaire is complete
+        if self.is_complete():
+            st.success("🎉 Alle categorieën voltooid!")
+
+            # Show summary of collected data
+            data = self.get_data()
+            if data:
+                with st.expander(
+                    "📊 Overzicht van ingevoerde gegevens", expanded=False
+                ):
+                    for category in self.categories:
+                        category_data = {
+                            k: v
+                            for k, v in data.items()
+                            if any(q.key == k for q in category.questions)
+                        }
+                        if category_data:
+                            st.subheader(f"{category.icon} {category.name}")
+                            for key, value in category_data.items():
+                                # Find the question to get the text
+                                question_text = next(
+                                    (
+                                        q.text
+                                        for q in category.questions
+                                        if q.key == key
+                                    ),
+                                    key,
+                                )
+                                st.write(f"**{question_text}:** {value}")
+                            st.write("---")
+
+            return data
+
+        current_category_idx = self._get_current_category_index()
+
+        # Run current category with simple navigation
+        category = self.categories[current_category_idx]
+        category_data = self._run_category(category)
+
+        if category_data is not None:
+            # Category completed, store data and move to next
+            self._store_data(category_data)
+
+            # Find next incomplete category
+            next_category_idx = None
+            progress_data = self._get_progress()
+            for i, cat in enumerate(self.categories):
+                if not progress_data[cat.name].completed:
+                    next_category_idx = i
+                    break
+
+            if next_category_idx is not None:
+                self._set_current_category_index(next_category_idx)
+                st.rerun()
+            else:
+                # All categories completed, exit step-by-step mode and go back to overview
+                st.session_state[f"{self.name}_in_stepmode"] = False
+                st.rerun()
+
+        return None
+
+    def navigate_to_category(self, category_name: str) -> None:
+        """Navigate directly to a specific category by name."""
+        for i, category in enumerate(self.categories):
+            if category.name == category_name:
+                self._set_current_category_index(i)
+                break
+
+    def navigate_to_question(self, category_name: str, question_key: str) -> None:
+        """Navigate directly to a specific question within a category."""
+        # First navigate to the category
+        self.navigate_to_category(category_name)
+
+        # Then find the question index
+        for category in self.categories:
+            if category.name == category_name:
+                for i, question in enumerate(category.questions):
+                    if question.key == question_key:
+                        progress = self._get_progress()[category_name]
+                        progress.current_question = i
+                        self._update_progress(category_name, progress)
+                        break
+                break
+
+    def get_completion_summary(self) -> Dict[str, Any]:
+        """Get a detailed summary of completion status."""
+        progress_data = self._get_progress()
+        summary = {
+            "total_categories": len(self.categories),
+            "completed_categories": 0,
+            "total_questions": 0,
+            "answered_questions": 0,
+            "categories": {},
+        }
+
+        for category in self.categories:
+            cat_progress = progress_data.get(
+                category.name, CategoryProgress(category.name)
+            )
+            total_q = len(category.questions)
+            answered_q = len(cat_progress.data)
+
+            summary["total_questions"] += total_q
+            summary["answered_questions"] += answered_q
+
+            if cat_progress.completed:
+                summary["completed_categories"] += 1
+
+            summary["categories"][category.name] = {
+                "total_questions": total_q,
+                "answered_questions": answered_q,
+                "completed": cat_progress.completed,
+                "progress_percentage": (
+                    (answered_q / total_q * 100) if total_q > 0 else 0
+                ),
+            }
+
+        summary["overall_percentage"] = (
+            summary["completed_categories"] / summary["total_categories"] * 100
+            if summary["total_categories"] > 0
+            else 0
+        )
+
+        return summary
 
     def reset(self) -> None:
         """Reset the entire questionnaire."""
-        keys_to_remove = [self.current_category_key, self.progress_key, self.data_key]
+        keys_to_remove = [
+            self.current_category_key,
+            self.progress_key,
+            self.data_key,
+            f"{self.name}_in_stepmode",
+            f"{self.name}_enter_stepmode",
+        ]
         for key in keys_to_remove:
             if key in st.session_state:
                 del st.session_state[key]
@@ -444,44 +743,170 @@ class CategoricalQuestionnaire:
         return None
 
     def run(self) -> Optional[Dict[str, Any]]:
-        """Run the categorical questionnaire."""
+        """Run the categorical questionnaire with overview navigation."""
         self._initialize_session_state()
 
-        # Show overall progress
-        self._show_overall_progress()
+        # Check if we should enter step-by-step mode for a specific category
+        if st.session_state.get(f"{self.name}_enter_stepmode", False):
+            # Clear the flag and set persistent step mode
+            del st.session_state[f"{self.name}_enter_stepmode"]
+            st.session_state[f"{self.name}_in_stepmode"] = True
+            # Run the step-by-step mode for the current category
+            return self._run_step_by_step_mode()
 
-        # Check if questionnaire is complete
-        if self.is_complete():
-            st.success("🎉 Alle categorieën voltooid!")
-            return self.get_data()
+        # Check if we're already in step-by-step mode
+        elif st.session_state.get(f"{self.name}_in_stepmode", False):
+            # Continue in step-by-step mode
+            return self._run_step_by_step_mode()
 
-        current_category_idx = self._get_current_category_index()
+        # Otherwise, show overview mode
+        return self.show_overview()
 
-        # Find next incomplete category
-        progress_data = self._get_progress()
-        for i, category in enumerate(self.categories):
-            if not progress_data[category.name].completed:
-                current_category_idx = i
-                break
+    def _run_category_with_navigation(
+        self, category: QuestionCategory
+    ) -> Optional[Dict[str, Any]]:
+        """Run a category with enhanced question navigation."""
+        progress = self._get_progress()[category.name]
 
-        # Run current category
-        category = self.categories[current_category_idx]
-        category_data = self._run_category(category)
+        # IMPORTANT: Merge global data into category progress to maintain consistency
+        global_data = self._get_all_data()
+        for question in category.questions:
+            if question.key in global_data and question.key not in progress.data:
+                progress.data[question.key] = global_data[question.key]
 
-        if category_data is not None:
-            # Category completed, store data and move to next
-            self._store_data(category_data)
+        visible_questions = self._get_visible_questions(category, progress.data)
 
-            # Find next incomplete category
-            next_category_idx = None
-            for i, cat in enumerate(self.categories):
-                if not progress_data[cat.name].completed:
-                    next_category_idx = i
-                    break
+        if not visible_questions:
+            # No visible questions, mark as complete
+            progress.completed = True
+            self._update_progress(category.name, progress)
+            return {}
 
-            if next_category_idx is not None:
-                self._set_current_category_index(next_category_idx)
+        # Show category header
+        self._show_category_progress(category, progress)
+
+        current_question_idx = min(
+            progress.current_question, len(visible_questions) - 1
+        )
+
+        # Show question navigation if more than one question
+        if len(visible_questions) > 1:
+            new_question_idx = display_question_navigation(
+                questions=visible_questions,
+                current_question_idx=current_question_idx,
+                category_name=category.name,
+                navigation_key=f"{self.name}_{category.name}",
+            )
+
+            if (
+                new_question_idx is not None
+                and new_question_idx != current_question_idx
+            ):
+                progress.current_question = new_question_idx
+                self._update_progress(category.name, progress)
                 st.rerun()
+
+        # Display current question
+        question = visible_questions[current_question_idx]
+
+        # Show question context
+        st.subheader(
+            f"❓ Vraag {current_question_idx + 1} van {len(visible_questions)}"
+        )
+
+        # Render the question
+        current_value = progress.data.get(question.key, question.get_default_value())
+        answer = question.render(current_value)
+
+        # AUTO-SAVE: Always save current answer to both category progress and global data
+        if answer is not None:
+            progress.data[question.key] = answer
+            self._update_progress(category.name, progress)
+            # Also save to global data immediately
+            self._store_data({question.key: answer})
+
+        # Enhanced navigation buttons
+        col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+
+        # Previous question button
+        with col1:
+            if current_question_idx > 0:
+                if st.button(
+                    "⬅️ Vorige vraag",
+                    key=f"prev_q_{category.name}_{current_question_idx}",
+                ):
+                    # Data is already auto-saved above
+                    progress.current_question = current_question_idx - 1
+                    self._update_progress(category.name, progress)
+                    st.rerun()
+
+        # Next question button
+        with col2:
+            if current_question_idx < len(visible_questions) - 1:
+                button_text = "Volgende vraag ➡️"
+                key = f"next_q_{category.name}_{current_question_idx}"
+            else:
+                button_text = "Voltooien categorie ✅"
+                key = f"complete_cat_{category.name}"
+
+            if st.button(button_text, key=key, type="primary"):
+                # Data is already auto-saved above
+                progress.current_question = current_question_idx + 1
+
+                # Check if category is now complete
+                if progress.current_question >= len(visible_questions):
+                    progress.completed = True
+
+                self._update_progress(category.name, progress)
+                st.rerun()
+
+        # Jump to previous category button
+        with col3:
+            current_cat_idx = self._get_current_category_index()
+            if current_cat_idx > 0:
+                prev_category = self.categories[current_cat_idx - 1]
+                if st.button(
+                    f"⬅️ {prev_category.icon}",
+                    key=f"goto_prev_cat_{category.name}",
+                    help=f"Ga naar {prev_category.name}",
+                ):
+                    # Data is already auto-saved above
+                    self._update_progress(category.name, progress)
+                    self._set_current_category_index(current_cat_idx - 1)
+                    st.rerun()
+
+        # Jump to next category button
+        with col4:
+            current_cat_idx = self._get_current_category_index()
+            if current_cat_idx < len(self.categories) - 1:
+                next_category = self.categories[current_cat_idx + 1]
+                if st.button(
+                    f"{next_category.icon} ➡️",
+                    key=f"goto_next_cat_{category.name}",
+                    help=f"Ga naar {next_category.name}",
+                ):
+                    # Data is already auto-saved above
+                    self._update_progress(category.name, progress)
+                    self._set_current_category_index(current_cat_idx + 1)
+                    st.rerun()
+
+        # Skip category button (moved to bottom)
+        st.write("---")
+        col_skip1, col_skip2, col_skip3 = st.columns([1, 2, 1])
+        with col_skip2:
+            if st.button(
+                "⏭️ Sla categorie over",
+                key=f"skip_cat_{category.name}",
+                type="secondary",
+                use_container_width=True,
+            ):
+                progress.completed = True
+                self._update_progress(category.name, progress)
+                st.rerun()
+
+        # Check if category is completed and return data if so
+        if progress.completed:
+            return progress.data
 
         return None
 
@@ -1332,7 +1757,7 @@ def create_financiele_apk_questionnaire() -> Questionnaire:
 
     config = QuestionnaireConfig(
         session_prefix="financiele_apk",
-        show_progress=True,
+        show_progress=False,
         show_previous_answers=True,
         navigation_style="columns",
     )
@@ -1954,15 +2379,29 @@ def show_financiele_apk() -> None:
 
             # Run the selected questionnaire mode
             if st.session_state.apk_mode == "quick":
-                # Show progress at 20% when questionnaire starts
+                questionnaire = create_financiele_apk_questionnaire()
+
+                # Calculate dynamic progress based on questionnaire step
+                current_step = questionnaire._get_current_step()
+                total_steps = len(questionnaire.questions)
+
+                # Progress ranges from 0% (start) to 100% (completion)
+                overall_progress = (
+                    (current_step / total_steps) if total_steps > 0 else 0
+                )
+
+                # Show dynamic progress indicator
                 display_progress_indicator(
-                    progress_value=0.2,
+                    progress_value=overall_progress,
                     title="Voortgang Financiële APK - Snelle Modus",
-                    subtitle="Vragenlijst gestart",
+                    subtitle=(
+                        f"Vraag {current_step + 1} van {total_steps}"
+                        if current_step < total_steps
+                        else "Vragenlijst voltooid"
+                    ),
                     show_percentage=True,
                 )
 
-                questionnaire = create_financiele_apk_questionnaire()
                 questionnaire_data = questionnaire.run()
 
                 # If questionnaire is completed, show results
