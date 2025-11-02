@@ -2,43 +2,27 @@
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[project]
+[tool.poetry]
 name = "rt-academy"
 version = "0.1.0"
 description = "Financial planning tools built with Streamlit"
-authors = [
-    {name = "RT Academy", email = "contact@rtacademy.com"},
-]
-license = {text = "MIT"}
+authors = ["RT Academy <contact@rtacademy.com>"]
 readme = "README.md"
-requires-python = ">=3.13"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.13",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-]
-dependencies = [
-    "streamlit>=1.24.0",
-    "plotly>=5.13.0",
-    "numpy>=1.24.0",
-]
+package-mode = false
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.poetry.dependencies]
+python = ">=3.13"
+streamlit = ">=1.24.0"
+plotly = ">=5.13.0"
+numpy = ">=1.24.0"
 
-[tool.setuptools.package-dir]
-"" = "src"
-
-[project.optional-dependencies]
-dev = [
-    "black>=23.0.0",
-    "isort>=5.12.0",
-    "mypy>=1.4.0",
-    "pydocstyle>=6.3.0",
-    "pylint>=3.0.0",
-    "pre-commit>=3.0.0",
-]
+[tool.poetry.group.dev.dependencies]
+black = ">=23.0.0"
+isort = ">=5.12.0"
+mypy = ">=1.4.0"
+pydocstyle = ">=6.3.0"
+pylint = ">=3.0.0"
+pre-commit = ">=3.0.0"
 
 [tool.pydocstyle]
 convention = "numpy"
