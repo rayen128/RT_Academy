@@ -31,8 +31,8 @@ are assumed to be in Euros (€). The simple mode includes validation
 to ensure input consistency.
 """
 
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import plotly.graph_objects as go
 import streamlit as st
@@ -41,7 +41,6 @@ from src.data.doel_suggesties import FINANCIELE_DOEL_SUGGESTIES
 from src.database.models import Asset, Liability, MonthlyFlow
 from src.UI_components.Applied.questionnaire import (
     BooleanQuestion,
-    MultiSelectQuestion,
     NumberQuestion,
     Question,
     Questionnaire,
@@ -57,9 +56,7 @@ from src.UI_components.Basic import (
     display_section_header,
 )
 from src.UI_components.Basic.layout import (
-    display_category_navigation,
     display_question_navigation,
-    display_two_column_layout,
 )
 
 
@@ -75,14 +72,14 @@ class QuestionCategory:
         Brief description of what this category covers
     icon : str
         Emoji icon for the category
-    questions : List[Question]
+    questions : Sequence[Question]
         List of questions in this category
     """
 
     name: str
     description: str
     icon: str
-    questions: List[Question]
+    questions: Sequence[Question]
 
 
 @dataclass
@@ -104,9 +101,10 @@ class CategoryProgress:
     category_name: str
     current_question: int = 0
     completed: bool = False
-    data: Dict[str, Any] = None
+    data: Dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Initialize data dictionary if None."""
         if self.data is None:
             self.data = {}
 
@@ -215,11 +213,10 @@ class ConditionalQuestion(Question):
 
         # Handle different comparison types
         if isinstance(self.condition_value, list):
-            return current_value in self.condition_value
-        elif isinstance(self.condition_value, str) and isinstance(current_value, list):
-            return self.condition_value in current_value
-        else:
-            return current_value == self.condition_value
+            return bool(current_value in self.condition_value)
+        if isinstance(self.condition_value, str) and isinstance(current_value, list):
+            return bool(self.condition_value in current_value)
+        return bool(current_value == self.condition_value)
 
     def render(self, current_value: Any = None) -> Any:
         """Render the base question."""
@@ -309,7 +306,8 @@ class CategoricalQuestionnaire:
     def _show_overall_progress(self) -> None:
         """Display overall progress across all categories."""
         progress_data = self._get_progress()
-        completed_categories = sum(1 for p in progress_data.values() if p.completed)
+        completed_categories = sum(
+            1 for p in progress_data.values() if p.completed)
         total_categories = len(self.categories)
 
         overall_progress = (
@@ -327,11 +325,13 @@ class CategoricalQuestionnaire:
         self, category: QuestionCategory, progress: CategoryProgress
     ) -> None:
         """Display progress for current category."""
-        visible_questions = self._get_visible_questions(category, progress.data)
+        visible_questions = self._get_visible_questions(
+            category, progress.data)
         total_questions = len(visible_questions)
 
         if total_questions > 0:
-            category_progress = (progress.current_question + 1) / total_questions
+            category_progress = (
+                progress.current_question + 1) / total_questions
             current_q = min(progress.current_question + 1, total_questions)
 
             display_progress_indicator(
@@ -345,7 +345,7 @@ class CategoricalQuestionnaire:
         self, category: QuestionCategory, data: Dict[str, Any]
     ) -> List[Question]:
         """Get list of questions that should be visible based on current data."""
-        visible = []
+        visible: List[Question] = []
         all_data = self._get_all_data()
         all_data.update(data)  # Include current category data
 
@@ -368,7 +368,8 @@ class CategoricalQuestionnaire:
             if question.key in global_data and question.key not in progress.data:
                 progress.data[question.key] = global_data[question.key]
 
-        visible_questions = self._get_visible_questions(category, progress.data)
+        visible_questions = self._get_visible_questions(
+            category, progress.data)
 
         if not visible_questions:
             # No questions to show, mark as completed
@@ -414,7 +415,8 @@ class CategoricalQuestionnaire:
                     "Vorige vraag", key=f"prev_q_{category.name}_{current_question_idx}"
                 ):
                     # Data is already auto-saved above
-                    progress.current_question = max(0, current_question_idx - 1)
+                    progress.current_question = max(
+                        0, current_question_idx - 1)
                     self._update_progress(category.name, progress)
                     st.rerun()
 
@@ -475,7 +477,8 @@ class CategoricalQuestionnaire:
             )
 
         with col2:
-            total_questions = sum(len(cat.questions) for cat in self.categories)
+            total_questions = sum(len(cat.questions)
+                                  for cat in self.categories)
             answered_questions = sum(
                 len(progress_data.get(cat.name, CategoryProgress(cat.name)).data)
                 for cat in self.categories
@@ -580,7 +583,8 @@ class CategoricalQuestionnaire:
                     "📊 Toon resultaten", type="primary", use_container_width=True
                 ):
                     st.balloons()
-                    st.success("Vragenlijst voltooid! Resultaten worden verwerkt...")
+                    st.success(
+                        "Vragenlijst voltooid! Resultaten worden verwerkt...")
                     return self.get_data()
 
         return None
@@ -606,14 +610,14 @@ class CategoricalQuestionnaire:
                     "📊 Overzicht van ingevoerde gegevens", expanded=False
                 ):
                     for category in self.categories:
-                        category_data = {
+                        cat_data = {
                             k: v
                             for k, v in data.items()
                             if any(q.key == k for q in category.questions)
                         }
-                        if category_data:
+                        if cat_data:
                             st.subheader(f"{category.icon} {category.name}")
-                            for key, value in category_data.items():
+                            for key, value in cat_data.items():
                                 # Find the question to get the text
                                 question_text = next(
                                     (
@@ -632,7 +636,7 @@ class CategoricalQuestionnaire:
 
         # Run current category with simple navigation
         category = self.categories[current_category_idx]
-        category_data = self._run_category(category)
+        category_data: Optional[Dict[str, Any]] = self._run_category(category)
 
         if category_data is not None:
             # Category completed, store data and move to next
@@ -682,7 +686,7 @@ class CategoricalQuestionnaire:
     def get_completion_summary(self) -> Dict[str, Any]:
         """Get a detailed summary of completion status."""
         progress_data = self._get_progress()
-        summary = {
+        summary: Dict[str, Any] = {
             "total_categories": len(self.categories),
             "completed_categories": 0,
             "total_questions": 0,
@@ -697,11 +701,16 @@ class CategoricalQuestionnaire:
             total_q = len(category.questions)
             answered_q = len(cat_progress.data)
 
-            summary["total_questions"] += total_q
-            summary["answered_questions"] += answered_q
+            summary["total_questions"] = int(
+                summary["total_questions"]) + total_q
+            summary["answered_questions"] = (
+                int(summary["answered_questions"]) + answered_q
+            )
 
             if cat_progress.completed:
-                summary["completed_categories"] += 1
+                summary["completed_categories"] = (
+                    int(summary["completed_categories"]) + 1
+                )
 
             summary["categories"][category.name] = {
                 "total_questions": total_q,
@@ -713,8 +722,10 @@ class CategoricalQuestionnaire:
             }
 
         summary["overall_percentage"] = (
-            summary["completed_categories"] / summary["total_categories"] * 100
-            if summary["total_categories"] > 0
+            int(summary["completed_categories"])
+            / int(summary["total_categories"])
+            * 100
+            if int(summary["total_categories"]) > 0
             else 0
         )
 
@@ -776,7 +787,8 @@ class CategoricalQuestionnaire:
             if question.key in global_data and question.key not in progress.data:
                 progress.data[question.key] = global_data[question.key]
 
-        visible_questions = self._get_visible_questions(category, progress.data)
+        visible_questions = self._get_visible_questions(
+            category, progress.data)
 
         if not visible_questions:
             # No visible questions, mark as complete
@@ -817,7 +829,8 @@ class CategoricalQuestionnaire:
         )
 
         # Render the question
-        current_value = progress.data.get(question.key, question.get_default_value())
+        current_value = progress.data.get(
+            question.key, question.get_default_value())
         answer = question.render(current_value)
 
         # AUTO-SAVE: Always save current answer to both category progress and global data
@@ -1834,7 +1847,8 @@ def _create_simple_financial_lists(
         else []
     )
     liabilities = (
-        [Liability(name="Totale schulden", amount=total_debt)] if total_debt > 0 else []
+        [Liability(name="Totale schulden", amount=total_debt)
+         ] if total_debt > 0 else []
     )
     income_streams = (
         [MonthlyFlow(name="Maandelijks inkomen", amount=monthly_income)]
@@ -1933,7 +1947,8 @@ def comprehensive_data_to_financiele_apk(data: Dict[str, Any]) -> FinancieleAPKD
         Complete financial data structure with calculated totals
     """
     # Calculate monthly income
-    monthly_income = data.get("primair_inkomen", 0.0) + data.get("bijinkomen", 0.0)
+    monthly_income = data.get("primair_inkomen", 0.0) + \
+        data.get("bijinkomen", 0.0)
 
     # Calculate monthly expenses
     monthly_expenses = (
@@ -1975,10 +1990,12 @@ def comprehensive_data_to_financiele_apk(data: Dict[str, Any]) -> FinancieleAPKD
             auto_name = "Auto"
         assets.append(Asset(name=auto_name, value=data["auto_waarde"]))
     if data.get("beleggingen_waarde", 0.0) > 0:
-        assets.append(Asset(name="Beleggingen", value=data["beleggingen_waarde"]))
+        assets.append(Asset(name="Beleggingen",
+                      value=data["beleggingen_waarde"]))
     if data.get("overige_bezittingen_waarde", 0.0) > 0:
         assets.append(
-            Asset(name="Overige bezittingen", value=data["overige_bezittingen_waarde"])
+            Asset(name="Overige bezittingen",
+                  value=data["overige_bezittingen_waarde"])
         )
     if data.get("woningwaarde", 0.0) > 0:
         assets.append(Asset(name="Woning", value=data["woningwaarde"]))
@@ -1986,17 +2003,20 @@ def comprehensive_data_to_financiele_apk(data: Dict[str, Any]) -> FinancieleAPKD
     # Create detailed lists for liabilities
     liabilities = []
     if data.get("hypotheekbedrag", 0.0) > 0:
-        liabilities.append(Liability(name="Hypotheek", amount=data["hypotheekbedrag"]))
+        liabilities.append(
+            Liability(name="Hypotheek", amount=data["hypotheekbedrag"]))
     if data.get("schuld_bedrag_1", 0.0) > 0:
         debt_name = data.get("schuld_type_1", "Schuld")
         if debt_name == "Geen schulden":
             debt_name = "Schuld"
-        liabilities.append(Liability(name=debt_name, amount=data["schuld_bedrag_1"]))
+        liabilities.append(
+            Liability(name=debt_name, amount=data["schuld_bedrag_1"]))
     if data.get("schuld_bedrag_2", 0.0) > 0:
         debt_name = data.get("schuld_type_2", "Tweede schuld")
         if debt_name == "Geen tweede schuld":
             debt_name = "Tweede schuld"
-        liabilities.append(Liability(name=debt_name, amount=data["schuld_bedrag_2"]))
+        liabilities.append(
+            Liability(name=debt_name, amount=data["schuld_bedrag_2"]))
 
     # Create detailed lists for income streams
     income_streams = []
@@ -2005,7 +2025,8 @@ def comprehensive_data_to_financiele_apk(data: Dict[str, Any]) -> FinancieleAPKD
             MonthlyFlow(name="Primair inkomen", amount=data["primair_inkomen"])
         )
     if data.get("bijinkomen", 0.0) > 0:
-        income_streams.append(MonthlyFlow(name="Bijinkomen", amount=data["bijinkomen"]))
+        income_streams.append(MonthlyFlow(
+            name="Bijinkomen", amount=data["bijinkomen"]))
 
     # Create detailed lists for expense streams
     expense_streams = []
@@ -2019,7 +2040,8 @@ def comprehensive_data_to_financiele_apk(data: Dict[str, Any]) -> FinancieleAPKD
         )
     if data.get("variabele_kosten", 0.0) > 0:
         expense_streams.append(
-            MonthlyFlow(name="Variabele kosten", amount=data["variabele_kosten"])
+            MonthlyFlow(name="Variabele kosten",
+                        amount=data["variabele_kosten"])
         )
     if data.get("hypotheek_maandlasten", 0.0) > 0:
         expense_streams.append(
@@ -2168,7 +2190,8 @@ def create_cash_flow_visualization(data: FinancieleAPKData) -> go.Figure:
         Plotly figure showing income, expenses, and leftover amount
     """
     categories = ["Inkomsten", "Uitgaven", "Over/Tekort"]
-    amounts = [data.monthly_income, data.monthly_expenses, data.monthly_leftover]
+    amounts = [data.monthly_income,
+               data.monthly_expenses, data.monthly_leftover]
     colors = ["green", "red", "blue" if data.monthly_leftover >= 0 else "orange"]
 
     fig = go.Figure()
@@ -2451,8 +2474,10 @@ def show_financiele_apk() -> None:
 
             elif st.session_state.apk_mode == "comprehensive":
                 # Use the comprehensive categorical questionnaire
-                questionnaire = create_comprehensive_financiele_apk_questionnaire()
-                questionnaire_data = questionnaire.run()
+                categorical_questionnaire = (
+                    create_comprehensive_financiele_apk_questionnaire()
+                )
+                questionnaire_data = categorical_questionnaire.run()
 
                 # If questionnaire is completed, show results
                 if questionnaire_data is not None:
@@ -2485,13 +2510,16 @@ def show_financiele_apk() -> None:
                 )
 
                 # Display completeness warnings
-                display_data_completeness_warnings(questionnaire_data, apk_mode)
+                display_data_completeness_warnings(
+                    questionnaire_data, apk_mode)
 
             else:
                 # Original quick mode validation and conversion
                 monthly_income = questionnaire_data.get("monthly_income", 0.0)
-                monthly_expenses = questionnaire_data.get("monthly_expenses", 0.0)
-                monthly_leftover = questionnaire_data.get("monthly_leftover", 0.0)
+                monthly_expenses = questionnaire_data.get(
+                    "monthly_expenses", 0.0)
+                monthly_leftover = questionnaire_data.get(
+                    "monthly_leftover", 0.0)
 
                 is_consistent, warning_message = validate_financial_consistency(
                     monthly_income, monthly_expenses, monthly_leftover

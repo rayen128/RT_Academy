@@ -55,48 +55,19 @@ session state and persists across Streamlit reruns.
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import streamlit as st
 
 # Import standardized UI components
-try:
-    from src.UI_components.Basic.input import (
-        display_calculation_button,
-        display_currency_input,
-        display_percentage_input,
-        display_smart_number_input,
-    )
-    from src.UI_components.Basic.layout import (
-        display_question_navigation,
-    )
-    from src.UI_components.Basic.status import (
-        display_progress_indicator,
-        display_status_message,
-    )
-except ImportError:
-    # Fallback for when UI components are not available
-    display_currency_input: Optional[  # type: ignore[no-redef]
-        Callable[[str, float, float, float, Optional[str], Optional[str]], float]
-    ] = None
-    display_percentage_input: Optional[  # type: ignore[no-redef]
-        Callable[[str, float, float, float, float, Optional[str], Optional[str]], float]
-    ] = None
-    display_smart_number_input: Optional[  # type: ignore[no-redef]
-        Callable[..., Union[int, float]]
-    ] = None
-    display_calculation_button: Optional[  # type: ignore[no-redef]
-        Callable[[str, Optional[str], Optional[str], str], bool]
-    ] = None
-    display_progress_indicator: Optional[  # type: ignore[no-redef]
-        Callable[[float, str, Optional[str], bool], None]
-    ] = None
-    display_status_message: Optional[  # type: ignore[no-redef]
-        Callable[[str, str, Optional[str]], None]
-    ] = None
-    display_question_navigation: Optional[  # type: ignore[no-redef]
-        Callable[[list, int, str, str], Optional[int]]
-    ] = None
+from src.UI_components.Basic.input import (
+    display_calculation_button,
+    display_smart_number_input,
+)
+from src.UI_components.Basic.status import (
+    display_progress_indicator,
+    display_status_message,
+)
 
 
 @dataclass
@@ -987,7 +958,8 @@ class Questionnaire:
                 elif isinstance(question, BooleanQuestion):
                     formatted_value = "Ja" if value else "Nee"
                 elif isinstance(question, MultiSelectQuestion):
-                    formatted_value = ", ".join(value) if value else "Geen selectie"
+                    formatted_value = ", ".join(
+                        value) if value else "Geen selectie"
                 elif isinstance(question, DateQuestion):
                     formatted_value = str(value) if value else "Geen datum"
                 else:
@@ -1092,7 +1064,8 @@ class Questionnaire:
                 else len(self.questions)
             ),
             "completion_percentage": (
-                (len(stored_data) / len(self.questions) * 100) if self.questions else 0
+                (len(stored_data) / len(self.questions)
+                 * 100) if self.questions else 0
             ),
             "is_complete": self.is_complete(),
         }
@@ -1274,7 +1247,8 @@ class Questionnaire:
                         button_type="secondary",
                     )
                 else:
-                    clicked = st.button("⬅️ Vorige", key=f"prev_{current_step}")
+                    clicked = st.button(
+                        "⬅️ Vorige", key=f"prev_{current_step}")
 
                 if clicked:
                     self._store_answer(question.key, current_value)
@@ -1297,7 +1271,8 @@ class Questionnaire:
                     label=button_text, key=button_key, button_type=button_type
                 )
             else:
-                clicked = st.button(button_text, key=button_key, type="primary")
+                clicked = st.button(
+                    button_text, key=button_key, type="primary")
 
             if clicked:
                 self._store_answer(question.key, current_value)
