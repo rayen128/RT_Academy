@@ -52,9 +52,10 @@ This module requires Streamlit context to run. All data is stored in
 session state and persists across Streamlit reruns.
 """
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import streamlit as st
 
@@ -431,6 +432,199 @@ class SelectQuestion(Question):
     def get_default_value(self) -> str:
         """Get default value."""
         return self.options[self.default_index] if self.options else ""
+
+
+class SelectWithCustomQuestion(Question):
+    """Select question with 'Anders, namelijk:' option and text field.
+
+    Allows users to select from predefined options or enter custom text.
+    When the custom option is selected, a text input field appears with
+    optional suggestions.
+    """
+
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self,
+        key: str,
+        text: str,
+        options: Sequence[str],
+        custom_option_label: str = "Anders, namelijk:",
+        suggestions: Optional[Sequence[str]] = None,
+        help_text: Optional[str] = None,
+    ):
+        """Initialize a select with custom question.
+
+        Parameters
+        ----------
+        key : str
+            Unique identifier for this question
+        text : str
+            Question text to display
+        options : Sequence[str]
+            List of predefined options (excluding custom option)
+        custom_option_label : str
+            Label for the custom option
+        suggestions : Optional[Sequence[str]]
+            List of suggestions to show when custom option is selected
+        help_text : Optional[str]
+            Optional help text
+        """
+        super().__init__(key, text, help_text)
+        self.options = list(options)
+        self.custom_option_label = custom_option_label
+        self.suggestions = list(suggestions) if suggestions else []
+        self.all_options = self.options + [custom_option_label]
+
+    def _filter_suggestions(self, query: str, max_results: int = 6) -> List[str]:
+        """Filter and rank suggestions based on user query with smart scoring.
+
+        Uses multiple matching strategies with relevance scoring:
+        - Exact substring match: highest priority
+        - Starts with query: high priority
+        - Word boundary match: medium priority
+        - Token-based match: lower priority
+
+        Parameters
+        ----------
+        query : str
+            The search query from user input
+        max_results : int
+            Maximum number of suggestions to return
+
+        Returns
+        -------
+        List[str]
+            Filtered and ranked list of matching suggestions, limited to max_results
+        """
+        if not query or not self.suggestions:
+            return []
+
+        query_lower = query.lower().strip()
+
+        # Early exit for very short queries to avoid false positives
+        if len(query_lower) < 2:
+            return []
+
+        # Score each suggestion
+        scored_suggestions: List[Tuple[int, str]] = []
+
+        # Precompile regex for word boundary matching (performance optimization)
+        try:
+            word_boundary_pattern = re.compile(
+                rf"\b{re.escape(query_lower)}", re.IGNORECASE
+            )
+        except re.error:
+            # Fallback if regex fails (e.g., special characters)
+            word_boundary_pattern = None
+
+        # Split query into tokens for token-based matching
+        query_tokens = query_lower.split()
+
+        for suggestion in self.suggestions:
+            suggestion_lower = suggestion.lower()
+            score = 0
+
+            # 1. Exact substring match (highest score: 100)
+            if query_lower in suggestion_lower:
+                score += 100
+
+                # 2. Bonus if suggestion starts with query (50 points)
+                if suggestion_lower.startswith(query_lower):
+                    score += 50
+
+                # 3. Bonus if match is at word boundary (25 points)
+                if word_boundary_pattern and word_boundary_pattern.search(suggestion):
+                    score += 25
+            else:
+                # 4. Token-based matching (10 points per matching token)
+                matching_tokens = sum(
+                    1 for token in query_tokens if token in suggestion_lower
+                )
+                if matching_tokens > 0:
+                    score += matching_tokens * 10
+
+            # Only include suggestions with positive scores
+            if score > 0:
+                scored_suggestions.append((score, suggestion))
+
+        # Sort by score (descending) and return top results
+        scored_suggestions.sort(reverse=True, key=lambda x: x[0])
+
+        return [suggestion for _, suggestion in scored_suggestions[:max_results]]
+
+    def render(self, current_value: Any = None) -> str:
+        """Render selectbox with conditional text input and dynamic suggestions."""
+        # Initialize session state for this question's custom text if needed
+        custom_text_key = f"custom_text_{self.key}"
+        if custom_text_key not in st.session_state:
+            st.session_state[custom_text_key] = ""
+
+        # Determine which option is selected
+        if current_value and current_value not in self.all_options:
+            # Custom value was entered previously
+            selected_option = self.custom_option_label
+            custom_text = current_value
+            st.session_state[custom_text_key] = custom_text
+        elif current_value in self.all_options:
+            selected_option = current_value
+            custom_text = st.session_state[custom_text_key]
+        else:
+            selected_option = (
+                self.options[0] if self.options else self.custom_option_label
+            )
+            custom_text = st.session_state[custom_text_key]
+
+        # Show selectbox
+        selection = st.selectbox(
+            self.text,
+            options=self.all_options,
+            index=self.all_options.index(selected_option),
+            help=self.help_text,
+            key=f"select_{self.key}",
+        )
+
+        # If custom option is selected, show text input with dynamic suggestions
+        if selection == self.custom_option_label:
+            # Show text input
+            result = st.text_input(
+                "Vul hier je eigen doel in:",
+                value=st.session_state[custom_text_key],
+                key=f"custom_{self.key}",
+                placeholder="Typ je eigen financiële doel...",
+            )
+
+            # Update session state
+            st.session_state[custom_text_key] = result
+
+            # Show dynamic suggestions based on input
+            if result and len(result.strip()) >= 2:
+                matching_suggestions = self._filter_suggestions(result)
+
+                # Show matching suggestions
+                if matching_suggestions:
+                    num_results = len(matching_suggestions)
+                    st.caption(
+                        f"💡 {num_results} {'suggestie' if num_results == 1 else 'suggesties'} "
+                        f"gevonden voor '{result.strip()}':"
+                    )
+                    for suggestion in matching_suggestions:
+                        if st.button(
+                            suggestion,
+                            key=f"suggestion_{self.key}_{hash(suggestion)}",
+                            use_container_width=True,
+                        ):
+                            st.session_state[custom_text_key] = suggestion
+                            st.rerun()
+
+            # Only return the custom text if it's not empty, otherwise return empty string
+            return result if result.strip() else ""
+        else:
+            # Reset custom text when switching away from custom option
+            st.session_state[custom_text_key] = ""
+            return str(selection)
+
+    def get_default_value(self) -> str:
+        """Get default value."""
+        return self.options[0] if self.options else ""
 
 
 class RadioQuestion(Question):

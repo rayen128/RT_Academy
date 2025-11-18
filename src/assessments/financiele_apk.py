@@ -37,6 +37,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import plotly.graph_objects as go
 import streamlit as st
 
+from src.data.doel_suggesties import FINANCIELE_DOEL_SUGGESTIES
 from src.database.models import Asset, Liability, MonthlyFlow
 from src.UI_components.Applied.questionnaire import (
     BooleanQuestion,
@@ -46,6 +47,7 @@ from src.UI_components.Applied.questionnaire import (
     Questionnaire,
     QuestionnaireConfig,
     SelectQuestion,
+    SelectWithCustomQuestion,
     TextQuestion,
 )
 from src.UI_components.Basic import (
@@ -1370,11 +1372,29 @@ def create_comprehensive_financiele_apk_questionnaire() -> CategoricalQuestionna
 
     # Category 8: Doelen
     doelen_questions = [
-        TextQuestion(
+        SelectWithCustomQuestion(
             key="doel_1_naam",
-            text="Wat is je eerste financiële doel?",
-            placeholder="Bijvoorbeeld: noodfonds, nieuwe auto, eigen huis...",
-            help_text="Beschrijf je belangrijkste financiële doel",
+            text="Wat is je (eerste) financiële doel?",
+            options=[
+                "Geldbuffer opbouwen van 6 maanden aan uitgaven",
+                "Overzicht krijgen in Financiën en uitgaven",
+                "(Studie) Schulden aflossen",
+                "Financieel gezond worden",
+                "Studie/opleiding",
+                "Huis kopen",
+                "Nieuwe waggie",
+                "Startkapitaal opbouwen om een eigen zaak te beginnen",
+                "Wereldreis/Sabbatical",
+                "Studie kinderen",
+                "Hypotheekschuld aflossen",
+                "Verbouwing",
+                "Pensioen opbouwen",
+                "Eerder stoppen met werken",
+                "Financiële Onafhankelijkheid",
+            ],
+            custom_option_label="Anders, namelijk:",
+            suggestions=FINANCIELE_DOEL_SUGGESTIES,
+            help_text="Kies je belangrijkste financiële doel of vul je eigen doel in",
         ),
         ConditionalQuestion(
             key="doel_1_bedrag",
@@ -1427,11 +1447,30 @@ def create_comprehensive_financiele_apk_questionnaire() -> CategoricalQuestionna
             condition_value="",
         ),
         # Second goal (optional)
-        TextQuestion(
+        SelectWithCustomQuestion(
             key="doel_2_naam",
             text="Heb je nog een tweede financieel doel? (optioneel)",
-            placeholder="Bijvoorbeeld: vakantie, studie, verbouwing...",
-            help_text="Optioneel: beschrijf een tweede financieel doel",
+            options=[
+                "",
+                "Geldbuffer opbouwen van 6 maanden aan uitgaven",
+                "Overzicht krijgen in Financiën en uitgaven",
+                "(Studie) Schulden aflossen",
+                "Financieel gezond worden",
+                "Studie/opleiding",
+                "Huis kopen",
+                "Nieuwe waggie",
+                "Startkapitaal opbouwen om een eigen zaak te beginnen",
+                "Wereldreis/Sabbatical",
+                "Studie kinderen",
+                "Hypotheekschuld aflossen",
+                "Verbouwing",
+                "Pensioen opbouwen",
+                "Eerder stoppen met werken",
+                "Financiële Onafhankelijkheid",
+            ],
+            custom_option_label="Anders, namelijk:",
+            suggestions=FINANCIELE_DOEL_SUGGESTIES,
+            help_text="Optioneel: kies een tweede financieel doel of vul je eigen doel in",
         ),
         ConditionalQuestion(
             key="doel_2_bedrag",
